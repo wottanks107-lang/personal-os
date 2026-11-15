@@ -1,0 +1,3083 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#000000" />
+  <title>Personal OS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    :root {
+      --bg-pure: #000000;
+      --glass-bg: rgba(8, 8, 10, 0.78);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --glass-highlight: rgba(255, 255, 255, 0.26);
+      --accent-white: #ffffff;
+      --text-muted: rgba(255, 255, 255, 0.48);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #000000;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    input, textarea, select {
+      user-select: text;
+    }
+
+    /* 3D Background Canvas */
+    #bg-webgl-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Ambient watermark typography */
+    .watermark-title {
+      position: fixed;
+      top: 4%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: clamp(4.5rem, 15vw, 13rem);
+      font-weight: 900;
+      letter-spacing: 0.18em;
+      background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.0) 85%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      pointer-events: none;
+      z-index: 1;
+      white-space: nowrap;
+    }
+
+    /* Liquid Glass Card with Specular Spotlight */
+    .liquid-card {
+      position: relative;
+      background: var(--glass-bg);
+      backdrop-filter: blur(40px) saturate(200%);
+      -webkit-backdrop-filter: blur(40px) saturate(200%);
+      border: 1px solid var(--glass-border);
+      border-radius: 26px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.25s ease, box-shadow 0.25s ease;
+      overflow: hidden;
+    }
+
+    .liquid-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(500px circle at var(--mouse-x, -500px) var(--mouse-y, -500px), rgba(255, 255, 255, 0.09), transparent 45%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .liquid-card > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .liquid-card:hover {
+      border-color: rgba(255, 255, 255, 0.24);
+    }
+
+    /* High-contrast White Luxury Card */
+    .white-lux-card {
+      background: linear-gradient(145deg, #ffffff 0%, #e9e9ef 100%);
+      color: #000000;
+      border-radius: 24px;
+      border: 1px solid #ffffff;
+      box-shadow: 0 20px 50px rgba(255, 255, 255, 0.12);
+    }
+
+    /* White Pill Buttons */
+    .btn-pill-white {
+      background: #ffffff;
+      color: #000000;
+      font-weight: 700;
+      border-radius: 9999px;
+      padding: 0.55rem 1.15rem;
+      font-size: 0.82rem;
+      letter-spacing: -0.01em;
+      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+      box-shadow: 0 6px 20px rgba(255, 255, 255, 0.18);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      cursor: pointer;
+    }
+    .btn-pill-white:hover {
+      transform: translateY(-1px) scale(1.02);
+      box-shadow: 0 10px 26px rgba(255, 255, 255, 0.28);
+    }
+    .btn-pill-white:active {
+      transform: scale(0.97);
+    }
+
+    .btn-pill-glass {
+      background: rgba(255, 255, 255, 0.07);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
+      padding: 0.5rem 1rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      cursor: pointer;
+    }
+    .btn-pill-glass:hover {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+    .btn-pill-glass.active {
+      background: #ffffff;
+      color: #000000;
+      border-color: #ffffff;
+    }
+
+    /* Native Controlled iOS Drum Roller */
+    .ios-wheel-capsule {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(12, 12, 16, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 22px;
+      height: 156px;
+      overflow: hidden;
+      box-shadow: inset 0 12px 28px rgba(0,0,0,0.85);
+    }
+    .ios-wheel-highlight {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 40px;
+      background: rgba(255, 255, 255, 0.11);
+      border-top: 1px solid rgba(255, 255, 255, 0.22);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 12px;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .ios-wheel-fade-top, .ios-wheel-fade-bottom {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 52px;
+      pointer-events: none;
+      z-index: 3;
+    }
+    .ios-wheel-fade-top {
+      top: 0;
+      background: linear-gradient(180deg, rgba(10,10,14,0.96) 10%, rgba(10,10,14,0) 100%);
+    }
+    .ios-wheel-fade-bottom {
+      bottom: 0;
+      background: linear-gradient(0deg, rgba(10,10,14,0.96) 10%, rgba(10,10,14,0) 100%);
+    }
+    .ios-wheel-column {
+      height: 156px;
+      width: 92px;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      position: relative;
+      z-index: 2;
+      padding-top: 58px;
+      padding-bottom: 58px;
+    }
+    .ios-wheel-column::-webkit-scrollbar {
+      display: none;
+    }
+    .ios-wheel-item {
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      scroll-snap-align: center;
+      scroll-snap-stop: always;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.35);
+      transition: transform 0.18s ease, color 0.18s ease;
+      cursor: pointer;
+    }
+    .ios-wheel-item.selected {
+      color: #ffffff;
+      transform: scale(1.12);
+      text-shadow: 0 0 14px rgba(255, 255, 255, 0.5);
+    }
+
+    /* Sleep Matrix Dots */
+    .sleep-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.18s ease;
+      cursor: pointer;
+    }
+    .sleep-dot:hover:not(.future-dot) {
+      transform: scale(1.55);
+      z-index: 10;
+    }
+    .sleep-dot.future-dot {
+      background: transparent !important;
+      border: 1px dashed rgba(255, 255, 255, 0.14);
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    /* Bottom iPhone Sliding Dock */
+    .ios-dock {
+      position: fixed;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 90;
+      background: rgba(10, 10, 14, 0.82);
+      backdrop-filter: blur(36px) saturate(210%);
+      -webkit-backdrop-filter: blur(36px) saturate(210%);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 9999px;
+      padding: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+      touch-action: none;
+    }
+    .dock-item {
+      position: relative;
+      padding: 10px 16px;
+      border-radius: 9999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.58);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+      white-space: nowrap;
+    }
+    .dock-item.active {
+      background: #ffffff;
+      color: #000000;
+      font-weight: 700;
+      box-shadow: 0 4px 18px rgba(255, 255, 255, 0.32);
+      transform: translateY(-1px);
+    }
+
+    /* Weekend calendar badge */
+    .cal-day-btn {
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .cal-day-btn:active {
+      transform: scale(0.9);
+    }
+    .cal-weekend {
+      background: linear-gradient(145deg, rgba(99, 102, 241, 0.18), rgba(168, 85, 247, 0.12));
+      border-color: rgba(129, 140, 248, 0.32) !important;
+    }
+
+    /* Scrooge Speech Bubble */
+    .scrooge-bubble {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #ffffff;
+      color: #000000;
+      font-weight: 800;
+      font-size: 0.82rem;
+      padding: 8px 16px;
+      border-radius: 18px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.65);
+      z-index: 20;
+      max-width: 90%;
+      text-align: center;
+      transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      pointer-events: none;
+    }
+    .scrooge-bubble::after {
+      content: "";
+      position: absolute;
+      bottom: -7px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 7px 7px 0;
+      border-style: solid;
+      border-color: #ffffff transparent;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.18);
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="pb-32 selection:bg-white selection:text-black">
+
+  <!-- 3D WebGL Background (Private Jet + Crypto Chain + Floating Cash) -->
+  <canvas id="bg-webgl-canvas"></canvas>
+  <div class="watermark-title" id="bg-watermark">SILENCE</div>
+
+  <!-- Main Container -->
+  <main class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-5 pb-20">
+
+    <!-- Top Minimal System Bar -->
+    <header class="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-2xl bg-white text-black font-black flex items-center justify-center text-sm tracking-tighter shadow-lg">
+          OS
+        </div>
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h1 class="text-xl sm:text-2xl font-black tracking-tight">Personal OS</h1>
+            <button onclick="App.requestNotifications()" class="btn-pill-glass !py-1 !px-2.5 !text-[11px]" title="Включить уведомления">
+              <span>🔔 Уведомления</span>
+            </button>
+          </div>
+          <p class="text-xs text-white/50 font-medium">Сводка дня и управление системой</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5">
+        <button onclick="CommandPalette.open()" class="btn-pill-glass !py-1.5 !px-3 text-xs" title="Быстрые команды (Cmd+K / Ctrl+K)">
+          <span>⌘K Команды</span>
+        </button>
+        <button onclick="App.openCloudModal()" class="btn-pill-glass !py-1.5 !px-3 text-xs" title="Авто-синхронизация Supabase и Бэкап">
+          <span id="sync-status-dot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span>Облако</span>
+        </button>
+        <div id="header-full-date" class="px-3.5 py-1.5 rounded-full bg-white/10 border border-white/15 text-xs font-bold tracking-wider">
+          14.11.2026
+        </div>
+      </div>
+    </header>
+
+    <!-- ================= TAB 0: OVERVIEW (BENTO GRID + READINESS) ================= -->
+    <section id="tab-overview" class="space-y-5">
+      <!-- Top Hero Bento Row: Life Readiness Score + Quick Actions -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        
+        <!-- Life Readiness Score (Cross-Module Bio & Capital Index) -->
+        <div class="liquid-card p-5 lg:col-span-5 flex items-center justify-between gap-4">
+          <div class="space-y-1.5">
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 text-[11px] font-semibold text-white/80">
+              <span>⚡ Индекс готовности</span>
+            </div>
+            <h2 class="text-2xl font-black tracking-tight" id="ov-readiness-label">Оптимальный ресурс</h2>
+            <p class="text-xs text-white/55 leading-relaxed" id="ov-readiness-desc">
+              Синтез сна, гидратации, калорий и выполненных задач за сегодня.
+            </p>
+            <div class="pt-1 flex flex-wrap gap-1.5 text-[11px] text-white/70">
+              <span class="px-2 py-0.5 rounded-md bg-white/5 border border-white/10" id="ov-readiness-iq">IQ-Потенциал: 120</span>
+              <span class="px-2 py-0.5 rounded-md bg-white/5 border border-white/10" id="ov-readiness-debt">Долг сна: 0ч</span>
+            </div>
+          </div>
+          <div class="relative w-28 h-28 shrink-0 flex items-center justify-center">
+            <svg class="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="42" stroke="rgba(255,255,255,0.1)" stroke-width="8" fill="none" />
+              <circle id="ov-readiness-ring" cx="50" cy="50" r="42" stroke="#ffffff" stroke-width="8" fill="none"
+                stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="40" class="transition-all duration-700" />
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <span id="ov-readiness-val" class="text-2xl font-black">88%</span>
+              <span class="text-[9px] uppercase tracking-widest text-white/45">Ready</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5 Module Quick Bento Cards (All with uniform divider & '+' action button) -->
+        <div class="lg:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-3.5">
+          
+          <!-- Sleep Bento -->
+          <div class="liquid-card p-4 flex flex-col justify-between">
+            <div onclick="App.switchTab('sleep')" class="cursor-pointer">
+              <div class="flex items-center justify-between text-xs text-white/50 mb-1">
+                <span>🌙 Сон сегодня</span>
+                <span>↗</span>
+              </div>
+              <div class="text-2xl font-black tracking-tight" id="ov-sleep-val">8ч 00м</div>
+              <div class="text-[11px] text-white/45 mt-0.5" id="ov-sleep-sub">Норма выполнена</div>
+            </div>
+            <div class="pt-3 mt-3 border-t border-white/10 flex items-center justify-between">
+              <span class="text-[11px] text-white/50">Записать</span>
+              <button onclick="App.switchTab('sleep')" class="w-7 h-7 rounded-full bg-white text-black font-bold flex items-center justify-center text-sm hover:scale-105 transition">+</button>
+            </div>
+          </div>
+
+          <!-- Water Bento -->
+          <div class="liquid-card p-4 flex flex-col justify-between">
+            <div onclick="App.switchTab('bio')" class="cursor-pointer">
+              <div class="flex items-center justify-between text-xs text-white/50 mb-1">
+                <span>💧 Вода</span>
+                <span>↗</span>
+              </div>
+              <div class="text-2xl font-black tracking-tight" id="ov-water-val">0 мл</div>
+              <div class="text-[11px] text-white/45 mt-0.5" id="ov-water-sub">Цель: 2400 мл</div>
+            </div>
+            <div class="pt-3 mt-3 border-t border-white/10 flex items-center justify-between">
+              <span class="text-[11px] text-white/50">+250 мл</span>
+              <button onclick="BioMod.addWater(250)" class="w-7 h-7 rounded-full bg-white text-black font-bold flex items-center justify-center text-sm hover:scale-105 transition">+</button>
+            </div>
+          </div>
+
+          <!-- Nutrition (Питание) Bento — WITH '+' BUTTON AND DIVIDER -->
+          <div class="liquid-card p-4 flex flex-col justify-between">
+            <div onclick="App.switchTab('bio')" class="cursor-pointer">
+              <div class="flex items-center justify-between text-xs text-white/50 mb-1">
+                <span>🍽 Питание</span>
+                <span>↗</span>
+              </div>
+              <div class="text-2xl font-black tracking-tight" id="ov-cal-val">0 ккал</div>
+              <div class="text-[11px] text-white/45 mt-0.5" id="ov-cal-sub">Б:0 Ж:0 У:0</div>
+            </div>
+            <div class="pt-3 mt-3 border-t border-white/10 flex items-center justify-between">
+              <span class="text-[11px] text-white/50">Приём пищи</span>
+              <button onclick="App.switchTab('bio'); setTimeout(()=>document.getElementById('food-search-input')?.focus(),150)" class="w-7 h-7 rounded-full bg-white text-black font-bold flex items-center justify-center text-sm hover:scale-105 transition">+</button>
+            </div>
+          </div>
+
+          <!-- Capital Bento -->
+          <div class="liquid-card p-4 flex flex-col justify-between">
+            <div onclick="App.switchTab('finance')" class="cursor-pointer">
+              <div class="flex items-center justify-between text-xs text-white/50 mb-1">
+                <span>💎 Капитал</span>
+                <span>↗</span>
+              </div>
+              <div class="text-xl font-black tracking-tight truncate" id="ov-fin-val">$0</div>
+              <div class="text-[11px] text-white/45 mt-0.5" id="ov-fin-sub">Гараж Скруджа</div>
+            </div>
+            <div class="pt-3 mt-3 border-t border-white/10 flex items-center justify-between">
+              <span class="text-[11px] text-white/50">Операция</span>
+              <button onclick="App.switchTab('finance'); setTimeout(()=>document.getElementById('tx-amount')?.focus(),150)" class="w-7 h-7 rounded-full bg-white text-black font-bold flex items-center justify-center text-sm hover:scale-105 transition">+</button>
+            </div>
+          </div>
+
+          <!-- Tasks Bento -->
+          <div class="liquid-card p-4 flex flex-col justify-between">
+            <div onclick="App.switchTab('tasks')" class="cursor-pointer">
+              <div class="flex items-center justify-between text-xs text-white/50 mb-1">
+                <span>☑️ Дела</span>
+                <span>↗</span>
+              </div>
+              <div class="text-2xl font-black tracking-tight" id="ov-tasks-val">0 / 0</div>
+              <div class="text-[11px] text-white/45 mt-0.5" id="ov-tasks-sub">Активные задачи</div>
+            </div>
+            <div class="pt-3 mt-3 border-t border-white/10 flex items-center justify-between">
+              <span class="text-[11px] text-white/50">Новая задача</span>
+              <button onclick="App.switchTab('tasks'); setTimeout(()=>document.getElementById('task-title-input')?.focus(),150)" class="w-7 h-7 rounded-full bg-white text-black font-bold flex items-center justify-center text-sm hover:scale-105 transition">+</button>
+            </div>
+          </div>
+
+          <!-- Quick Links Bento -->
+          <div class="liquid-card p-4 flex flex-col justify-between">
+            <div onclick="App.switchTab('links')" class="cursor-pointer">
+              <div class="flex items-center justify-between text-xs text-white/50 mb-1">
+                <span>🔗 Ссылки / App</span>
+                <span>↗</span>
+              </div>
+              <div class="text-2xl font-black tracking-tight" id="ov-links-val">8</div>
+              <div class="text-[11px] text-white/45 mt-0.5">Сайты и iPhone App</div>
+            </div>
+            <div class="pt-3 mt-3 border-t border-white/10 flex items-center justify-between">
+              <span class="text-[11px] text-white/50">Открыть хаб</span>
+              <button onclick="App.switchTab('links')" class="w-7 h-7 rounded-full bg-white text-black font-bold flex items-center justify-center text-sm hover:scale-105 transition">+</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Luxury 3-Card Showcase Composition (2 White Side Cards + Elevated Center Dark Glass Card) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch pt-1">
+        <!-- Left White Card -->
+        <div class="white-lux-card p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-xs font-bold text-black/50 mb-2">
+              <span>01 / БИОРИТМ И СОН</span>
+              <span>↗</span>
+            </div>
+            <h3 class="text-xl font-black tracking-tight leading-snug">Стабильность глубоких фаз</h3>
+            <p class="text-xs text-black/65 mt-1.5 leading-relaxed" id="ov-lux-sleep-text">
+              Средняя длительность сна за 7 дней формирует ваш когнитивный потенциал.
+            </p>
+          </div>
+          <div class="pt-4 mt-4 border-t border-black/10 flex items-center justify-between">
+            <span class="text-xs font-bold" id="ov-lux-sleep-avg">Среднее: 8.0 ч</span>
+            <button onclick="App.switchTab('sleep')" class="px-3 py-1 rounded-full bg-black text-white text-xs font-bold">Матрица →</button>
+          </div>
+        </div>
+
+        <!-- Center Elevated Dark Glass Card -->
+        <div class="liquid-card p-6 md:-my-2 border-white/30 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-xs font-bold text-white/50 mb-2">
+              <span>02 / ФОКУС ДНЯ</span>
+              <span class="w-6 h-6 rounded-full bg-white text-black flex items-center justify-center font-black">↗</span>
+            </div>
+            <h3 class="text-xl font-black tracking-tight">Главные задачи на сегодня</h3>
+            <div id="ov-today-tasks-list" class="mt-3 space-y-2 text-xs"></div>
+          </div>
+          <div class="pt-4 mt-4 border-t border-white/15 flex items-center justify-between">
+            <span class="text-xs text-white/50">Синхронизация с Google Cal</span>
+            <button onclick="App.switchTab('tasks')" class="btn-pill-white !py-1 !px-3 !text-xs">Все дела</button>
+          </div>
+        </div>
+
+        <!-- Right White Card -->
+        <div class="white-lux-card p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-xs font-bold text-black/50 mb-2">
+              <span>03 / КАПИТАЛ И АКТИВЫ</span>
+              <span>↗</span>
+            </div>
+            <h3 class="text-xl font-black tracking-tight leading-snug" id="ov-lux-fin-title">Хранилище Скруджа</h3>
+            <p class="text-xs text-black/65 mt-1.5 leading-relaxed" id="ov-lux-fin-text">
+              Контроль чистого капитала, доходности и заполнения 3D-гаража.
+            </p>
+          </div>
+          <div class="pt-4 mt-4 border-t border-black/10 flex items-center justify-between">
+            <span class="text-xs font-bold" id="ov-lux-fin-rate">Заполнение: 0%</span>
+            <button onclick="App.switchTab('finance')" class="px-3 py-1 rounded-full bg-black text-white text-xs font-bold">3D Гараж →</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 1: SLEEP TRACKER MODULE ================= -->
+    <section id="tab-sleep" class="space-y-5 hidden">
+      <!-- Top Control Card: Date + Customizable Presets + Native iOS Drum Rollers -->
+      <div class="liquid-card p-5 sm:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-white/10">
+          <div class="flex items-center gap-3">
+            <input type="date" id="sleep-date-picker" onchange="SleepMod.onDateChange(this.value)"
+              class="bg-white/10 border border-white/15 rounded-xl px-3 py-1.5 text-sm font-bold text-white focus:outline-none focus:border-white" />
+            <span id="sleep-selected-badge" class="px-3 py-1 rounded-full bg-white text-black text-xs font-black">8ч 00м</span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button onclick="SleepMod.setEntryMode('duration')" id="sleep-mode-dur" class="btn-pill-glass active !py-1.5 !px-3 !text-xs">Часы и минуты</button>
+            <button onclick="SleepMod.setEntryMode('bedwake')" id="sleep-mode-bw" class="btn-pill-glass !py-1.5 !px-3 !text-xs">Лёг → Встал</button>
+            <button onclick="SleepMod.togglePresetEdit()" id="sleep-preset-edit-btn" class="btn-pill-glass !py-1.5 !px-3 !text-xs" title="Настроить свои быстрые кнопки">
+              ✎ Изм. кнопки
+            </button>
+          </div>
+        </div>
+
+        <!-- Customizable 5 Quick Preset Buttons -->
+        <div class="mt-4">
+          <div id="sleep-preset-hint" class="hidden text-xs text-amber-300 mb-2 font-medium">
+            Режим настройки кнопок: нажмите на любую из 5 кнопок ниже, чтобы сохранить на неё текущее время с барабана!
+          </div>
+          <div id="sleep-presets-row" class="grid grid-cols-5 gap-2.5"></div>
+        </div>
+
+        <!-- Mode A: Duration Drum Roller (Hours + Minutes) -->
+        <div id="sleep-panel-duration" class="mt-5 grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
+          <div class="md:col-span-6 flex items-center justify-center">
+            <div class="ios-wheel-capsule w-full max-w-xs">
+              <div class="ios-wheel-highlight"></div>
+              <div class="ios-wheel-fade-top"></div>
+              <div class="ios-wheel-fade-bottom"></div>
+              <div id="wheel-sleep-hours" class="ios-wheel-column"></div>
+              <div class="text-xl font-black text-white/80 px-2 z-10">:</div>
+              <div id="wheel-sleep-mins" class="ios-wheel-column"></div>
+            </div>
+          </div>
+          <div class="md:col-span-6 flex flex-col justify-center space-y-3">
+            <div class="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
+              <div>
+                <div class="text-xs text-white/50">Выбранная длительность</div>
+                <div class="text-2xl font-black mt-0.5" id="sleep-roller-preview">8 ч 00 мин</div>
+              </div>
+              <button onclick="SleepMod.saveCurrentRoller()" class="btn-pill-white">Записать</button>
+            </div>
+            <div class="text-xs text-white/45">
+              Прокрутите барабан пальцем или колёсиком мыши (по 1 делению). Все изменения автоматически синхронизируются.
+            </div>
+          </div>
+        </div>
+
+        <!-- Mode B: Bedtime -> Wake time with 24h Ring -->
+        <div id="sleep-panel-bedwake" class="mt-5 hidden grid-cols-1 md:grid-cols-12 gap-5 items-center">
+          <div class="md:col-span-5 flex flex-col items-center">
+            <div class="text-xs font-bold text-white/60 mb-1.5">Во сколько лёг</div>
+            <div class="ios-wheel-capsule w-full max-w-[230px]">
+              <div class="ios-wheel-highlight"></div>
+              <div class="ios-wheel-fade-top"></div>
+              <div class="ios-wheel-fade-bottom"></div>
+              <div id="wheel-bed-h" class="ios-wheel-column !w-20"></div>
+              <div class="text-lg font-black text-white/80 px-1 z-10">:</div>
+              <div id="wheel-bed-m" class="ios-wheel-column !w-20"></div>
+            </div>
+          </div>
+
+          <div class="md:col-span-2 flex flex-col items-center justify-center">
+            <svg class="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="40" stroke="rgba(255,255,255,0.1)" stroke-width="8" fill="none" />
+              <circle id="sleep-bw-arc" cx="50" cy="50" r="40" stroke="#ffffff" stroke-width="8" fill="none"
+                stroke-linecap="round" stroke-dasharray="251" stroke-dashoffset="120" />
+            </svg>
+            <div class="text-xs font-black mt-1" id="sleep-bw-calc-label">8ч 00м</div>
+          </div>
+
+          <div class="md:col-span-5 flex flex-col items-center">
+            <div class="text-xs font-bold text-white/60 mb-1.5">Во сколько встал</div>
+            <div class="ios-wheel-capsule w-full max-w-[230px]">
+              <div class="ios-wheel-highlight"></div>
+              <div class="ios-wheel-fade-top"></div>
+              <div class="ios-wheel-fade-bottom"></div>
+              <div id="wheel-wake-h" class="ios-wheel-column !w-20"></div>
+              <div class="text-lg font-black text-white/80 px-1 z-10">:</div>
+              <div id="wheel-wake-m" class="ios-wheel-column !w-20"></div>
+            </div>
+          </div>
+          <div class="md:col-span-12 flex justify-end">
+            <button onclick="SleepMod.saveBedWake()" class="btn-pill-white">Сохранить цикл сна</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 365-Day Sleep Matrix Card with Clean Brain SVG Index -->
+      <div class="liquid-card p-5 sm:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
+          <!-- Year Switcher -->
+          <div class="flex items-center gap-2">
+            <button onclick="SleepMod.changeYear(-1)" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center font-bold">‹</button>
+            <span id="sleep-year-label" class="text-xl font-black tracking-tight px-2">2026</span>
+            <button onclick="SleepMod.changeYear(1)" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center font-bold">›</button>
+          </div>
+
+          <!-- Clean SVG Brain Contour + Cognitive Index (90-150) -->
+          <div class="flex items-center gap-3 px-3.5 py-1.5 rounded-2xl bg-white/5 border border-white/15">
+            <svg class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.5 3A3.5 3.5 0 0 0 6 6.5c0 .46.09.9.25 1.3A3.5 3.5 0 0 0 4 11c0 1.3.7 2.42 1.75 3.03A3.49 3.49 0 0 0 5.5 15.5 3.5 3.5 0 0 0 9 19h.5v2h5v-2h.5a3.5 3.5 0 0 0 3.5-3.5c0-.53-.12-1.03-.33-1.47A3.5 3.5 0 0 0 20 11a3.5 3.5 0 0 0-2.25-3.2c.16-.4.25-.84.25-1.3A3.5 3.5 0 0 0 14.5 3c-1.15 0-2.17.56-2.8 1.42A3.48 3.48 0 0 0 9.5 3Z"/>
+              <path stroke-linecap="round" d="M12 4.5v14.5M9 8.5c1.2 0 2 .8 2 2M15 8.5c-1.2 0-2 .8-2 2M8.5 13.5c1.2 0 2 .8 2 2M15.5 13.5c-1.2 0-2 .8-2 2"/>
+            </svg>
+            <div>
+              <div class="text-[10px] uppercase tracking-wider text-white/45 font-bold">Brain Index</div>
+              <div class="text-base font-black leading-none" id="sleep-brain-index">122</div>
+            </div>
+          </div>
+
+          <!-- Monochrome Silver/White Legend -->
+          <div class="flex items-center gap-3 text-[11px] text-white/60">
+            <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-full inline-block bg-zinc-700"></i> &lt;6h</span>
+            <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-full inline-block bg-zinc-400"></i> 7h</span>
+            <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-full inline-block bg-white shadow-[0_0_8px_#fff]"></i> 8h</span>
+            <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-full inline-block bg-indigo-300"></i> 9h+</span>
+          </div>
+        </div>
+
+        <!-- 12 Months Matrix Grid -->
+        <div id="sleep-matrix-grid" class="space-y-2.5 overflow-x-auto pb-2"></div>
+      </div>
+
+      <!-- 90-Minute Sleep Cycles Calculator with Native Drum Roller -->
+      <div class="liquid-card p-5 sm:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <h3 class="text-base font-black tracking-tight">Калькулятор 90-минутных циклов сна</h3>
+          <span class="text-xs text-white/45">Во сколько лечь, чтобы проснуться бодрым (+15 мин на засыпание)</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
+          <div class="md:col-span-5 flex justify-center">
+            <div class="ios-wheel-capsule w-full max-w-[230px]">
+              <div class="ios-wheel-highlight"></div>
+              <div class="ios-wheel-fade-top"></div>
+              <div class="ios-wheel-fade-bottom"></div>
+              <div id="wheel-calc-h" class="ios-wheel-column !w-20"></div>
+              <div class="text-lg font-black text-white/80 px-1 z-10">:</div>
+              <div id="wheel-calc-m" class="ios-wheel-column !w-20"></div>
+            </div>
+          </div>
+          <div class="md:col-span-7 grid grid-cols-2 sm:grid-cols-4 gap-2.5" id="sleep-calc-results"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 2: CAPITAL & 3D SCROOGE GARAGE ================= -->
+    <section id="tab-finance" class="space-y-5 hidden">
+      <!-- 3D WebGL Scrooge McDuck Garage Widget -->
+      <div class="liquid-card p-0 overflow-hidden relative">
+        <div id="scrooge-bubble" class="scrooge-bubble">
+          "Work smarter, not harder! Another fresh stack in the garage!"
+        </div>
+
+        <div id="scrooge-3d-container" class="w-full h-[360px] sm:h-[410px] relative cursor-grab active:cursor-grabbing"></div>
+
+        <!-- Bottom Overlay Bar inside Garage -->
+        <div class="p-4 sm:px-6 bg-black/80 backdrop-blur-xl border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div class="text-2xl sm:text-3xl font-black tracking-tight" id="fin-total-balance">$0</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-white/60">Лимит гаража ($):</span>
+            <input type="number" id="fin-garage-target" onchange="FinanceMod.setTarget(this.value)"
+              class="w-28 bg-white/10 border border-white/20 rounded-xl px-2.5 py-1 text-xs font-bold text-white" value="10000" />
+            <button onclick="FinanceMod.pokeScrooge()" class="btn-pill-glass !py-1 !px-3 !text-xs">🎩 Реплика</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Transaction + History Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div class="liquid-card p-5 lg:col-span-5 space-y-3.5">
+          <h3 class="text-base font-black">Новая операция</h3>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="tx-type-inc" onclick="FinanceMod.setTxType('income')" class="btn-pill-glass active">＋ Доход (Пачки ↓)</button>
+            <button id="tx-type-exp" onclick="FinanceMod.setTxType('expense')" class="btn-pill-glass">－ Расход (Искры ↑)</button>
+          </div>
+          <input id="tx-amount" type="number" placeholder="Сумма в $" class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-sm font-bold focus:outline-none focus:border-white" />
+          <input id="tx-title" type="text" placeholder="Описание (например: Дивиденды, Проект, Кафе)" class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-white" />
+          <button onclick="FinanceMod.addTransaction()" class="btn-pill-white w-full !py-2.5">Провести операцию</button>
+        </div>
+
+        <div class="liquid-card p-5 lg:col-span-7 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-base font-black">История движения капитала</h3>
+              <span class="text-xs text-white/45" id="fin-tx-count">0 операций</span>
+            </div>
+            <div id="fin-tx-list" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 3: WATER & NUTRITION (ПИТАНИЕ 125+ ITEMS) ================= -->
+    <section id="tab-bio" class="space-y-5 hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        
+        <!-- Water Tracker with Persistent Weight Auto-Save -->
+        <div class="liquid-card p-5 lg:col-span-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-lg font-black">💧 Гидратация</h3>
+              <p class="text-xs text-white/50">Вес и норма сохраняются навсегда</p>
+            </div>
+            <div class="text-right">
+              <div class="text-2xl font-black" id="bio-water-current">0 мл</div>
+              <div class="text-xs text-white/45" id="bio-water-goal-label">из 2400 мл</div>
+            </div>
+          </div>
+
+          <div class="w-full h-3 rounded-full bg-white/10 overflow-hidden">
+            <div id="bio-water-bar" class="h-full bg-white transition-all duration-500" style="width: 0%"></div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="BioMod.addWater(200)" class="btn-pill-glass">+200 мл</button>
+            <button onclick="BioMod.addWater(300)" class="btn-pill-glass">+300 мл</button>
+            <button onclick="BioMod.addWater(500)" class="btn-pill-white">+500 мл</button>
+          </div>
+
+          <div class="pt-3 border-t border-white/10 grid grid-cols-2 gap-3 items-center">
+            <div>
+              <label class="text-[11px] text-white/50 block mb-1">Ваш вес (кг)</label>
+              <input type="number" id="bio-weight-input" onchange="BioMod.updateWeight(this.value)"
+                class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-1.5 text-sm font-bold" placeholder="75" />
+            </div>
+            <div>
+              <label class="text-[11px] text-white/50 block mb-1">Дневная норма (мл)</label>
+              <input type="number" id="bio-water-goal-input" onchange="BioMod.updateWaterGoal(this.value)"
+                class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-1.5 text-sm font-bold" placeholder="2400" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Nutrition (Питание) with 125+ Food Database -->
+        <div class="liquid-card p-5 lg:col-span-7 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 class="text-lg font-black">🍽 Питание</h3>
+              <p class="text-xs text-white/50">База 125+ продуктов (творог, пицца, чипсы, мясо, суши, крупы и др.)</p>
+            </div>
+            <div class="flex items-center gap-2 text-xs font-bold">
+              <span class="px-2.5 py-1 rounded-lg bg-white text-black" id="bio-cal-total">0 ккал</span>
+              <span class="px-2 py-1 rounded-lg bg-white/10" id="bio-macro-b">Б: 0г</span>
+              <span class="px-2 py-1 rounded-lg bg-white/10" id="bio-macro-j">Ж: 0г</span>
+              <span class="px-2 py-1 rounded-lg bg-white/10" id="bio-macro-u">У: 0г</span>
+            </div>
+          </div>
+
+          <!-- Search & Category Filter -->
+          <div class="flex flex-wrap gap-1.5" id="food-cat-pills"></div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+            <div class="sm:col-span-7 relative">
+              <input type="text" id="food-search-input" oninput="BioMod.filterFoods(this.value)"
+                placeholder="Поиск: творог 5%, чипсы Lay's, пицца пепперони, шаурма..."
+                class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:border-white" />
+            </div>
+            <div class="sm:col-span-3 flex items-center gap-1.5">
+              <input type="number" id="food-grams-input" value="100" min="10" step="10"
+                class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-sm font-bold text-center" />
+              <span class="text-xs text-white/50">г</span>
+            </div>
+            <div class="sm:col-span-2">
+              <button onclick="BioMod.addSelectedFood()" class="btn-pill-white w-full !py-2">+</button>
+            </div>
+          </div>
+
+          <!-- Food Database Results Grid -->
+          <div id="food-db-results" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1"></div>
+
+          <!-- Consumed Today List -->
+          <div class="pt-3 border-t border-white/10">
+            <div class="text-xs font-bold text-white/50 mb-2">Съедено за сегодня:</div>
+            <div id="food-log-list" class="space-y-1.5 max-h-40 overflow-y-auto"></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ================= TAB 4: TASKS & CALENDAR (WORKDAYS/WEEKENDS + SUBTASKS TABLE + GOOGLE CAL) ================= -->
+    <section id="tab-tasks" class="space-y-5 hidden">
+      <!-- Calendar Strip with Workdays vs Soft Indigo Weekends -->
+      <div class="liquid-card p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div class="flex items-center gap-3">
+            <h3 class="text-lg font-black">Календарь дел</h3>
+            <span class="px-2.5 py-0.5 rounded-full bg-white/10 text-[11px] text-white/70">Будни / Выходные (Сб–Вс)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="TasksMod.exportICS()" class="btn-pill-glass !py-1.5 !px-3 !text-xs">📅 Экспорт .ICS (iPhone/Android)</button>
+          </div>
+        </div>
+        <div id="tasks-calendar-strip" class="grid grid-cols-7 sm:grid-cols-14 gap-2 overflow-x-auto pb-1"></div>
+      </div>
+
+      <!-- Create Task (No redundant category tags, with comma-separated checklist table builder) -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div class="liquid-card p-5 lg:col-span-5 space-y-3.5">
+          <h3 class="text-base font-black">Создать задачу</h3>
+          <input id="task-title-input" type="text" placeholder="Название задачи или цель"
+            class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-sm font-bold focus:outline-none focus:border-white" />
+          
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="text-[11px] text-white/50 block mb-1">Время</label>
+              <input id="task-time-input" type="time" value="10:00"
+                class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-sm font-bold" />
+            </div>
+            <div>
+              <label class="text-[11px] text-white/50 block mb-1">Приоритет</label>
+              <select id="task-prio-input" class="w-full bg-zinc-900 border border-white/15 rounded-xl px-3 py-2 text-sm font-bold">
+                <option value="high">🔥 Высокий</option>
+                <option value="medium" selected>⚡ Средний</option>
+                <option value="low">💎 Обычный</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-[11px] text-white/50 block mb-1">Шаги и подзадачи (через запятую для таблицы выполнения)</label>
+            <textarea id="task-subtasks-input" rows="2" placeholder="Например: Купить продукты, Позвонить клиенту, Отправить отчёт"
+              class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-white"></textarea>
+          </div>
+
+          <button onclick="TasksMod.addTask()" class="btn-pill-white w-full !py-2.5">+ Добавить задачу</button>
+        </div>
+
+        <!-- Tasks & Interactive Subtasks Table -->
+        <div class="liquid-card p-5 lg:col-span-7">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-black" id="tasks-date-heading">Задачи на выбранный день</h3>
+            <span class="text-xs text-white/50" id="tasks-progress-badge">Выполнено: 0/0</span>
+          </div>
+          <div id="tasks-list-container" class="space-y-3"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 5: LINKS & DEEP LINKS HUB ================= -->
+    <section id="tab-links" class="space-y-5 hidden">
+      <div class="liquid-card p-5 sm:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div>
+            <h3 class="text-lg font-black">Ссылки и запуск приложений телефона (Deep Links)</h3>
+            <p class="text-xs text-white/50">Нажмите на пресет или добавьте свой сайт / приложение iPhone & Android</p>
+          </div>
+        </div>
+
+        <!-- Quick Native App Scheme Presets -->
+        <div class="flex flex-wrap gap-2 mb-4">
+          <button onclick="LinksMod.fillPreset('Telegram', 'tg://', '📱')" class="btn-pill-glass !text-xs">📱 Telegram (App)</button>
+          <button onclick="LinksMod.fillPreset('YouTube', 'vnd.youtube://', '▶️')" class="btn-pill-glass !text-xs">▶️ YouTube (App)</button>
+          <button onclick="LinksMod.fillPreset('Будильник iOS', 'clock-alarm://', '⏰')" class="btn-pill-glass !text-xs">⏰ Будильник</button>
+          <button onclick="LinksMod.fillPreset('Apple Здоровье', 'x-apple-health://', '❤️')" class="btn-pill-glass !text-xs">❤️ Здоровье</button>
+          <button onclick="LinksMod.fillPreset('Команды iOS', 'shortcuts://', '⚡')" class="btn-pill-glass !text-xs">⚡ Команды iOS</button>
+          <button onclick="LinksMod.fillPreset('WhatsApp', 'whatsapp://', '💬')" class="btn-pill-glass !text-xs">💬 WhatsApp</button>
+          <button onclick="LinksMod.fillPreset('Spotify', 'spotify://', '🎵')" class="btn-pill-glass !text-xs">🎵 Spotify</button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+          <input id="link-icon-input" type="text" placeholder="Иконка (📱)" value="🌐"
+            class="sm:col-span-2 bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-center text-sm" />
+          <input id="link-title-input" type="text" placeholder="Название (например, TradingView)"
+            class="sm:col-span-4 bg-white/5 border border-white/15 rounded-xl px-3.5 py-2 text-sm font-bold" />
+          <input id="link-url-input" type="text" placeholder="URL или схема (tg://, https://...)"
+            class="sm:col-span-4 bg-white/5 border border-white/15 rounded-xl px-3.5 py-2 text-sm" />
+          <button onclick="LinksMod.addLink()" class="sm:col-span-2 btn-pill-white !py-2">+ Добавить</button>
+        </div>
+      </div>
+
+      <!-- Links Grid -->
+      <div id="links-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5"></div>
+    </section>
+
+  </main>
+
+  <!-- ================= BOTTOM iOS SLIDING DOCK ================= -->
+  <nav id="ios-bottom-dock" class="ios-dock" aria-label="Навигация">
+    <div data-tab="overview" class="dock-item active"><span>⚡</span><span>Обзор</span></div>
+    <div data-tab="sleep" class="dock-item"><span>🌙</span><span>Сон</span></div>
+    <div data-tab="finance" class="dock-item"><span>💎</span><span>Капитал</span></div>
+    <div data-tab="bio" class="dock-item"><span>🍽</span><span>Вода/Питание</span></div>
+    <div data-tab="tasks" class="dock-item"><span>☑️</span><span>Дела</span></div>
+    <div data-tab="links" class="dock-item"><span>🔗</span><span>Ссылки</span></div>
+  </nav>
+
+  <!-- ================= COMMAND PALETTE MODAL (CMD+K) ================= -->
+  <div id="cmd-palette-modal" class="fixed inset-0 z-[120] bg-black/80 backdrop-blur-xl hidden items-start justify-center pt-20 px-4">
+    <div class="liquid-card w-full max-w-lg p-4 border-white/25">
+      <div class="flex items-center gap-2 border-b border-white/10 pb-3">
+        <span class="text-white/50 text-sm">⌘</span>
+        <input id="cmd-input" type="text" oninput="CommandPalette.renderList(this.value)"
+          placeholder="Быстрая команда: 'вода 300', 'сон 8', 'доход 500', 'задача'..."
+          class="w-full bg-transparent text-sm font-bold focus:outline-none text-white" />
+        <button onclick="CommandPalette.close()" class="text-xs text-white/40 hover:text-white px-2">ESC</button>
+      </div>
+      <div id="cmd-list" class="mt-3 space-y-1.5 max-h-72 overflow-y-auto"></div>
+    </div>
+  </div>
+
+  <!-- ================= CLOUD & BACKUP MODAL ================= -->
+  <div id="cloud-modal" class="fixed inset-0 z-[120] bg-black/80 backdrop-blur-xl hidden items-center justify-center px-4">
+    <div class="liquid-card w-full max-w-md p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-black">Авто-синхронизация Supabase & JSON</h3>
+        <button onclick="App.closeCloudModal()" class="text-white/50 hover:text-white">✕</button>
+      </div>
+      <p class="text-xs text-white/55">
+        Все изменения сохраняются локально мгновенно и автоматически отправляются в ваш Supabase при наличии ключей.
+      </p>
+      <input id="supa-url" type="text" placeholder="Supabase Project URL (https://xxx.supabase.co)"
+        oninput="Store.saveCloudConfig()" class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2 text-xs" />
+      <input id="supa-key" type="password" placeholder="Supabase Anon Public Key"
+        oninput="Store.saveCloudConfig()" class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2 text-xs" />
+      <div class="flex items-center justify-between gap-2 pt-2 border-t border-white/10">
+        <button onclick="Store.exportJSON()" class="btn-pill-glass !text-xs w-1/2">⬇ Скачать JSON</button>
+        <label class="btn-pill-white !text-xs w-1/2 cursor-pointer text-center">
+          ⬆ Импорт JSON
+          <input type="file" accept=".json" onchange="Store.importJSON(event)" class="hidden" />
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       1. STORE & AUTO-SYNC ENGINE (100% BACKWARD COMPATIBLE WITH sleep_matters_v3_2026)
+       ========================================================================= */
+    const Store = {
+      keys: {
+        sleepPrefix: 'sleep_matters_v3_',
+        sleepPresets: 'personal_os_sleep_presets_v1',
+        waterMeta: 'personal_os_water_meta_v1',
+        bioDaily: 'personal_os_bio_daily_v1',
+        finance: 'personal_os_finance_v1',
+        tasks: 'personal_os_tasks_v1',
+        links: 'personal_os_links_v1',
+        cloud: 'personal_os_supabase_cfg'
+      },
+
+      todayISO() {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      },
+
+      formatFullDateRU(dateObj = new Date()) {
+        const d = String(dateObj.getDate()).padStart(2, '0');
+        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const y = dateObj.getFullYear();
+        return `${d}.${m}.${y}`;
+      },
+
+      get(key, fallback) {
+        try {
+          const raw = localStorage.getItem(key);
+          return raw ? JSON.parse(raw) : fallback;
+        } catch (e) {
+          return fallback;
+        }
+      },
+
+      set(key, val) {
+        try {
+          localStorage.setItem(key, JSON.stringify(val));
+          this.triggerAutoCloudSync();
+        } catch (e) {}
+      },
+
+      saveCloudConfig() {
+        const url = document.getElementById('supa-url')?.value.trim() || '';
+        const key = document.getElementById('supa-key')?.value.trim() || '';
+        localStorage.setItem(this.keys.cloud, JSON.stringify({ url, key }));
+        this.triggerAutoCloudSync();
+      },
+
+      async triggerAutoCloudSync() {
+        const cfg = this.get(this.keys.cloud, { url: '', key: '' });
+        if (!cfg.url || !cfg.key) return;
+        const dot = document.getElementById('sync-status-dot');
+        if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+        try {
+          const payload = this.collectAllData();
+          await fetch(`${cfg.url.replace(/\/$/, '')}/rest/v1/personal_os_backup`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': cfg.key,
+              'Authorization': `Bearer ${cfg.key}`,
+              'Prefer': 'resolution=merge-duplicates'
+            },
+            body: JSON.stringify({ id: 'primary_user', payload, updated_at: new Date().toISOString() })
+          });
+          if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+        } catch (e) {
+          if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+        }
+      },
+
+      collectAllData() {
+        const dump = {};
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('sleep_matters_') || k.startsWith('personal_os_'))) {
+            dump[k] = localStorage.getItem(k);
+          }
+        }
+        return dump;
+      },
+
+      exportJSON() {
+        const blob = new Blob([JSON.stringify(this.collectAllData(), null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `personal_os_backup_${this.todayISO()}.json`;
+        a.click();
+      },
+
+      importJSON(event) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = JSON.parse(e.target.result);
+            Object.keys(data).forEach(k => {
+              localStorage.setItem(k, typeof data[k] === 'string' ? data[k] : JSON.stringify(data[k]));
+            });
+            location.reload();
+          } catch (err) {
+            alert('Ошибка чтения JSON файла');
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+
+    /* =========================================================================
+       2. CONTROLLED SYSTEM iOS DRUM ROLLER FACTORY (SLOW STEP-BY-STEP SCROLL)
+       ========================================================================= */
+    const WheelFactory = {
+      instances: {},
+
+      create(containerId, items, initialValue, onChange) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        el.innerHTML = '';
+        const itemHeight = 40;
+
+        items.forEach((item, idx) => {
+          const div = document.createElement('div');
+          div.className = 'ios-wheel-item';
+          div.dataset.value = item.value;
+          div.dataset.index = idx;
+          div.textContent = item.label;
+          div.onclick = () => {
+            el.scrollTo({ top: idx * itemHeight, behavior: 'smooth' });
+          };
+          el.appendChild(div);
+        });
+
+        let currentIndex = Math.max(0, items.findIndex(i => i.value === initialValue));
+
+        const highlightIndex = (idx) => {
+          const children = el.querySelectorAll('.ios-wheel-item');
+          children.forEach((c, i) => {
+            c.classList.toggle('selected', i === idx);
+          });
+        };
+
+        // Controlled slow wheel handler on desktop (strictly 1 step per wheel gesture)
+        let wheelLocked = false;
+        el.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          if (wheelLocked) return;
+          wheelLocked = true;
+          const dir = e.deltaY > 0 ? 1 : -1;
+          currentIndex = Math.max(0, Math.min(items.length - 1, currentIndex + dir));
+          el.scrollTo({ top: currentIndex * itemHeight, behavior: 'smooth' });
+          highlightIndex(currentIndex);
+          if (onChange) onChange(items[currentIndex].value);
+          setTimeout(() => { wheelLocked = false; }, 170);
+        }, { passive: false });
+
+        // Native scroll listener for touch/swipe
+        let scrollTimeout = null;
+        el.addEventListener('scroll', () => {
+          const idx = Math.max(0, Math.min(items.length - 1, Math.round(el.scrollTop / itemHeight)));
+          if (idx !== currentIndex) {
+            currentIndex = idx;
+            highlightIndex(currentIndex);
+            if (onChange) onChange(items[currentIndex].value);
+          }
+          clearTimeout(scrollTimeout);
+          scrollTimeout = setTimeout(() => {
+            el.scrollTo({ top: currentIndex * itemHeight, behavior: 'smooth' });
+          }, 120);
+        });
+
+        // Set initial position
+        setTimeout(() => {
+          el.scrollTop = currentIndex * itemHeight;
+          highlightIndex(currentIndex);
+        }, 30);
+
+        this.instances[containerId] = {
+          setValue(val) {
+            const idx = items.findIndex(i => i.value === val);
+            if (idx !== -1) {
+              currentIndex = idx;
+              el.scrollTo({ top: idx * itemHeight, behavior: 'smooth' });
+              highlightIndex(idx);
+            }
+          },
+          getValue() {
+            return items[currentIndex]?.value;
+          }
+        };
+      }
+    };
+
+    /* =========================================================================
+       3. MODULE 1: SLEEP TRACKER (CUSTOM PRESETS, NO FUTURE DATES, BRAIN SVG)
+       ========================================================================= */
+    const SleepMod = {
+      currentYear: new Date().getFullYear(),
+      selectedDate: Store.todayISO(),
+      entryMode: 'duration',
+      editingPresets: false,
+      durHours: 8,
+      durMins: 0,
+      bedH: 23,
+      bedM: 30,
+      wakeH: 7,
+      wakeM: 30,
+      calcH: 7,
+      calcM: 30,
+      presets: [
+        { h: 6, m: 0 },
+        { h: 6, m: 45 },
+        { h: 7, m: 30 },
+        { h: 8, m: 0 },
+        { h: 9, m: 0 }
+      ],
+
+      init() {
+        const savedPresets = Store.get(Store.keys.sleepPresets, null);
+        if (savedPresets && Array.isArray(savedPresets) && savedPresets.length === 5) {
+          this.presets = savedPresets;
+        }
+
+        const picker = document.getElementById('sleep-date-picker');
+        if (picker) {
+          picker.max = Store.todayISO();
+          picker.value = this.selectedDate;
+        }
+
+        const hourItems = [];
+        for (let h = 2; h <= 14; h++) hourItems.push({ value: h, label: `${h} ч` });
+        const minItems = [];
+        for (let m = 0; m < 60; m += 5) minItems.push({ value: m, label: `${String(m).padStart(2, '0')} м` });
+
+        const h24 = [];
+        for (let h = 0; h < 24; h++) h24.push({ value: h, label: String(h).padStart(2, '0') });
+
+        WheelFactory.create('wheel-sleep-hours', hourItems, this.durHours, (val) => {
+          this.durHours = val;
+          this.updateRollerPreview();
+        });
+        WheelFactory.create('wheel-sleep-mins', minItems, this.durMins, (val) => {
+          this.durMins = val;
+          this.updateRollerPreview();
+        });
+
+        WheelFactory.create('wheel-bed-h', h24, this.bedH, (v) => { this.bedH = v; this.updateBedWakePreview(); });
+        WheelFactory.create('wheel-bed-m', minItems, this.bedM, (v) => { this.bedM = v; this.updateBedWakePreview(); });
+        WheelFactory.create('wheel-wake-h', h24, this.wakeH, (v) => { this.wakeH = v; this.updateBedWakePreview(); });
+        WheelFactory.create('wheel-wake-m', minItems, this.wakeM, (v) => { this.wakeM = v; this.updateBedWakePreview(); });
+
+        WheelFactory.create('wheel-calc-h', h24, this.calcH, (v) => { this.calcH = v; this.renderCyclesCalc(); });
+        WheelFactory.create('wheel-calc-m', minItems, this.calcM, (v) => { this.calcM = v; this.renderCyclesCalc(); });
+
+        this.loadDateValue(this.selectedDate);
+        this.renderPresets();
+        this.renderMatrix();
+        this.renderCyclesCalc();
+      },
+
+      getYearMap(year) {
+        return Store.get(`${Store.keys.sleepPrefix}${year}`, {});
+      },
+
+      saveYearMap(year, map) {
+        Store.set(`${Store.keys.sleepPrefix}${year}`, map);
+      },
+
+      formatHM(decimalHours) {
+        const totalMins = Math.round((Number(decimalHours) || 0) * 60);
+        const h = Math.floor(totalMins / 60);
+        const m = totalMins % 60;
+        return `${h}ч ${String(m).padStart(2, '0')}м`;
+      },
+
+      onDateChange(dateStr) {
+        if (!dateStr) return;
+        if (dateStr > Store.todayISO()) {
+          dateStr = Store.todayISO();
+          document.getElementById('sleep-date-picker').value = dateStr;
+        }
+        this.selectedDate = dateStr;
+        this.loadDateValue(dateStr);
+      },
+
+      loadDateValue(dateStr) {
+        const year = Number(dateStr.split('-')[0]);
+        const map = this.getYearMap(year);
+        const val = map[dateStr] !== undefined ? Number(map[dateStr]) : 8;
+        const totalMins = Math.round(val * 60);
+        this.durHours = Math.max(2, Math.min(14, Math.floor(totalMins / 60)));
+        this.durMins = Math.round((totalMins % 60) / 5) * 5;
+        if (this.durMins === 60) { this.durMins = 0; }
+
+        WheelFactory.instances['wheel-sleep-hours']?.setValue(this.durHours);
+        WheelFactory.instances['wheel-sleep-mins']?.setValue(this.durMins);
+        this.updateRollerPreview();
+      },
+
+      updateRollerPreview() {
+        const label = `${this.durHours} ч ${String(this.durMins).padStart(2, '0')} мин`;
+        const prev = document.getElementById('sleep-roller-preview');
+        const badge = document.getElementById('sleep-selected-badge');
+        if (prev) prev.textContent = label;
+        if (badge) badge.textContent = `${this.durHours}ч ${String(this.durMins).padStart(2, '0')}м`;
+      },
+
+      saveDuration(h, m) {
+        if (this.selectedDate > Store.todayISO()) return;
+        const year = Number(this.selectedDate.split('-')[0]);
+        const map = this.getYearMap(year);
+        const dec = Number((h + m / 60).toFixed(2));
+        map[this.selectedDate] = dec;
+        this.saveYearMap(year, map);
+        this.durHours = h;
+        this.durMins = m;
+        this.updateRollerPreview();
+        this.renderMatrix();
+        App.updateOverview();
+      },
+
+      saveCurrentRoller() {
+        this.saveDuration(this.durHours, this.durMins);
+      },
+
+      togglePresetEdit() {
+        this.editingPresets = !this.editingPresets;
+        const btn = document.getElementById('sleep-preset-edit-btn');
+        const hint = document.getElementById('sleep-preset-hint');
+        if (btn) btn.classList.toggle('active', this.editingPresets);
+        if (hint) hint.classList.toggle('hidden', !this.editingPresets);
+        this.renderPresets();
+      },
+
+      renderPresets() {
+        const row = document.getElementById('sleep-presets-row');
+        if (!row) return;
+        row.innerHTML = '';
+        this.presets.forEach((p, idx) => {
+          const btn = document.createElement('button');
+          const label = p.m === 0 ? `${p.h}:00` : `${p.h}:${String(p.m).padStart(2, '0')}`;
+          btn.className = this.editingPresets
+            ? 'py-2.5 px-3 rounded-2xl border border-amber-400/60 bg-amber-400/10 text-amber-200 font-black text-sm transition hover:scale-105'
+            : 'py-2.5 px-3 rounded-2xl border border-white/15 bg-white/5 hover:bg-white hover:text-black font-black text-sm transition';
+          btn.textContent = this.editingPresets ? `✎ ${label}` : label;
+          btn.onclick = () => {
+            if (this.editingPresets) {
+              this.presets[idx] = { h: this.durHours, m: this.durMins };
+              Store.set(Store.keys.sleepPresets, this.presets);
+              this.renderPresets();
+            } else {
+              WheelFactory.instances['wheel-sleep-hours']?.setValue(p.h);
+              WheelFactory.instances['wheel-sleep-mins']?.setValue(p.m);
+              this.saveDuration(p.h, p.m);
+            }
+          };
+          row.appendChild(btn);
+        });
+      },
+
+      setEntryMode(mode) {
+        this.entryMode = mode;
+        document.getElementById('sleep-mode-dur')?.classList.toggle('active', mode === 'duration');
+        document.getElementById('sleep-mode-bw')?.classList.toggle('active', mode === 'bedwake');
+        const pDur = document.getElementById('sleep-panel-duration');
+        const pBw = document.getElementById('sleep-panel-bedwake');
+        if (pDur) pDur.classList.toggle('hidden', mode !== 'duration');
+        if (pBw) {
+          pBw.classList.toggle('hidden', mode !== 'bedwake');
+          pBw.classList.toggle('grid', mode === 'bedwake');
+        }
+      },
+
+      updateBedWakePreview() {
+        let bedMins = this.bedH * 60 + this.bedM;
+        let wakeMins = this.wakeH * 60 + this.wakeM;
+        let diff = wakeMins - bedMins;
+        if (diff <= 0) diff += 24 * 60;
+        const h = Math.floor(diff / 60);
+        const m = diff % 60;
+        const lbl = document.getElementById('sleep-bw-calc-label');
+        if (lbl) lbl.textContent = `${h}ч ${String(m).padStart(2, '0')}м`;
+        const arc = document.getElementById('sleep-bw-arc');
+        if (arc) {
+          const pct = Math.min(1, diff / (12 * 60));
+          arc.setAttribute('stroke-dashoffset', String(Math.round(251 * (1 - pct))));
+        }
+      },
+
+      saveBedWake() {
+        let bedMins = this.bedH * 60 + this.bedM;
+        let wakeMins = this.wakeH * 60 + this.wakeM;
+        let diff = wakeMins - bedMins;
+        if (diff <= 0) diff += 24 * 60;
+        const h = Math.floor(diff / 60);
+        const m = Math.round((diff % 60) / 5) * 5;
+        this.saveDuration(h, m === 60 ? 0 : m);
+      },
+
+      changeYear(delta) {
+        const maxYear = new Date().getFullYear();
+        const next = this.currentYear + delta;
+        if (next > maxYear || next < 2020) return;
+        this.currentYear = next;
+        document.getElementById('sleep-year-label').textContent = String(this.currentYear);
+        this.renderMatrix();
+      },
+
+      renderMatrix() {
+        const container = document.getElementById('sleep-matrix-grid');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const months = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+        const map = this.getYearMap(this.currentYear);
+        const today = Store.todayISO();
+
+        let sumHours = 0;
+        let countDays = 0;
+
+        months.forEach((mName, mIdx) => {
+          const row = document.createElement('div');
+          row.className = 'flex items-center gap-2';
+
+          const mLabel = document.createElement('div');
+          mLabel.className = 'w-9 text-[11px] font-bold text-white/45 shrink-0';
+          mLabel.textContent = mName;
+          row.appendChild(mLabel);
+
+          const dotsWrap = document.createElement('div');
+          dotsWrap.className = 'flex items-center gap-1.5';
+
+          const daysInMonth = new Date(this.currentYear, mIdx + 1, 0).getDate();
+          for (let d = 1; d <= daysInMonth; d++) {
+            const iso = `${this.currentYear}-${String(mIdx + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const isFuture = iso > today;
+            const val = map[iso];
+
+            const dot = document.createElement('div');
+            dot.className = 'sleep-dot';
+            if (isFuture) {
+              dot.classList.add('future-dot');
+              dot.title = `${iso}: Будущая дата (недоступно)`;
+            } else {
+              if (val !== undefined) {
+                sumHours += Number(val);
+                countDays++;
+                if (val < 6) dot.style.background = '#3f3f46';
+                else if (val < 7.5) dot.style.background = '#a1a1aa';
+                else if (val <= 8.6) {
+                  dot.style.background = '#ffffff';
+                  dot.style.boxShadow = '0 0 8px rgba(255,255,255,0.85)';
+                } else {
+                  dot.style.background = '#a5b4fc';
+                }
+                dot.title = `${iso}: ${this.formatHM(val)}`;
+              } else {
+                dot.style.background = 'rgba(255,255,255,0.1)';
+                dot.title = `${iso}: Нет записи (нажмите для выбора)`;
+              }
+              if (iso === this.selectedDate) {
+                dot.style.outline = '2px solid #ffffff';
+                dot.style.outlineOffset = '2px';
+              }
+              dot.onclick = () => {
+                this.selectedDate = iso;
+                const picker = document.getElementById('sleep-date-picker');
+                if (picker) picker.value = iso;
+                this.loadDateValue(iso);
+                this.renderMatrix();
+              };
+            }
+            dotsWrap.appendChild(dot);
+          }
+          row.appendChild(dotsWrap);
+          container.appendChild(row);
+        });
+
+        // Update Brain Index (90 - 150)
+        const avg = countDays > 0 ? sumHours / countDays : 8.0;
+        const iqIndex = Math.round(Math.max(90, Math.min(150, 95 + (avg / 8.2) * 45)));
+        const brainEl = document.getElementById('sleep-brain-index');
+        if (brainEl) brainEl.textContent = String(iqIndex);
+      },
+
+      renderCyclesCalc() {
+        const box = document.getElementById('sleep-calc-results');
+        if (!box) return;
+        box.innerHTML = '';
+        const wakeTotal = this.calcH * 60 + this.calcM;
+        const cycles = [6, 5, 4, 3];
+        cycles.forEach(c => {
+          let bedMins = wakeTotal - (c * 90 + 15);
+          while (bedMins < 0) bedMins += 24 * 60;
+          const bh = String(Math.floor(bedMins / 60)).padStart(2, '0');
+          const bm = String(bedMins % 60).padStart(2, '0');
+          const card = document.createElement('div');
+          card.className = c >= 5
+            ? 'p-3 rounded-2xl bg-white text-black text-center cursor-pointer transition hover:scale-105'
+            : 'p-3 rounded-2xl bg-white/5 border border-white/10 text-center cursor-pointer transition hover:bg-white/10';
+          card.innerHTML = `
+            <div class="text-xs opacity-60 font-bold">${c} циклов (${(c * 1.5).toFixed(1)}ч)</div>
+            <div class="text-lg font-black mt-0.5">${bh}:${bm}</div>
+          `;
+          box.appendChild(card);
+        });
+      },
+
+      getStatsForOverview() {
+        const today = Store.todayISO();
+        const year = Number(today.split('-')[0]);
+        const map = this.getYearMap(year);
+        const todayVal = map[today] !== undefined ? Number(map[today]) : 8.0;
+
+        // 7-day average & debt
+        let sum7 = 0;
+        let cnt7 = 0;
+        for (let i = 0; i < 7; i++) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const m = this.getYearMap(d.getFullYear());
+          if (m[iso] !== undefined) {
+            sum7 += Number(m[iso]);
+            cnt7++;
+          }
+        }
+        const avg7 = cnt7 > 0 ? sum7 / cnt7 : todayVal;
+        const debt = Math.max(0, (8 * 7) - (avg7 * 7));
+        const iq = Math.round(Math.max(90, Math.min(150, 95 + (avg7 / 8.0) * 42)));
+        return { todayVal, avg7, debt, iq };
+      }
+    };
+
+    /* =========================================================================
+       4. MODULE 2: CAPITAL & 3D WEBGL SCROOGE MCDUCK GARAGE (THREE.JS)
+       ========================================================================= */
+    const FinanceMod = {
+      txType: 'income',
+      data: {
+        target: 10000,
+        transactions: [
+          { id: 1, type: 'income', amount: 4200, title: 'Основной доход', date: '13.11.2026' },
+          { id: 2, type: 'income', amount: 3500, title: 'Инвестиционный пул', date: '14.11.2026' }
+        ]
+      },
+      three: {
+        scene: null,
+        camera: null,
+        renderer: null,
+        scroogeGroup: null,
+        billsGroup: null,
+        sparkles: [],
+        fallingBills: [],
+        fillRatio: 0
+      },
+      quotesIncome: [
+        "Work smarter, not harder! Another fresh stack in the garage!",
+        "Bury me in cash, lad! Only my top hat needs air!",
+        "Every dollar is a soldier building the empire!",
+        "Compound interest is the eighth wonder of the world!"
+      ],
+      quotesExpense: [
+        "Watch the burn rate, lad! Protect the principal!",
+        "Money flying out the arch window! Keep it tight!",
+        "A penny saved is a penny earning yield!"
+      ],
+
+      init() {
+        const saved = Store.get(Store.keys.finance, null);
+        if (saved && saved.transactions) this.data = saved;
+        const targetInp = document.getElementById('fin-garage-target');
+        if (targetInp) targetInp.value = this.data.target || 10000;
+        this.renderUI();
+        this.init3DGarage();
+      },
+
+      getBalance() {
+        return this.data.transactions.reduce((acc, t) => t.type === 'income' ? acc + Number(t.amount) : acc - Number(t.amount), 0);
+      },
+
+      setTxType(type) {
+        this.txType = type;
+        document.getElementById('tx-type-inc')?.classList.toggle('active', type === 'income');
+        document.getElementById('tx-type-exp')?.classList.toggle('active', type === 'expense');
+      },
+
+      setTarget(val) {
+        this.data.target = Math.max(100, Number(val) || 10000);
+        Store.set(Store.keys.finance, this.data);
+        this.renderUI();
+        this.sync3DMoneyPile(true);
+      },
+
+      sayQuote(text) {
+        const b = document.getElementById('scrooge-bubble');
+        if (!b) return;
+        b.style.opacity = '0';
+        b.style.transform = 'translateX(-50%) scale(0.9)';
+        setTimeout(() => {
+          b.textContent = `"${text}"`;
+          b.style.opacity = '1';
+          b.style.transform = 'translateX(-50%) scale(1)';
+        }, 140);
+      },
+
+      pokeScrooge() {
+        const ratio = Math.min(1, Math.max(0, this.getBalance() / (this.data.target || 10000)));
+        if (ratio >= 0.7) {
+          this.sayQuote("Bury me in cash, lad! Only my top hat needs air!");
+        } else {
+          const q = this.quotesIncome[Math.floor(Math.random() * this.quotesIncome.length)];
+          this.sayQuote(q);
+        }
+      },
+
+      addTransaction(customAmount, customTitle, customType) {
+        const amtEl = document.getElementById('tx-amount');
+        const titEl = document.getElementById('tx-title');
+        const amount = customAmount !== undefined ? Number(customAmount) : Number(amtEl?.value);
+        const title = customTitle !== undefined ? customTitle : (titEl?.value.trim() || (this.txType === 'income' ? 'Пополнение' : 'Расход'));
+        const type = customType || this.txType;
+
+        if (!amount || amount <= 0) return;
+
+        this.data.transactions.unshift({
+          id: Date.now(),
+          type,
+          amount,
+          title,
+          date: Store.formatFullDateRU()
+        });
+        Store.set(Store.keys.finance, this.data);
+        if (amtEl) amtEl.value = '';
+        if (titEl) titEl.value = '';
+
+        this.renderUI();
+        this.sync3DMoneyPile(false, type);
+        App.updateOverview();
+      },
+
+      deleteTx(id) {
+        this.data.transactions = this.data.transactions.filter(t => t.id !== id);
+        Store.set(Store.keys.finance, this.data);
+        this.renderUI();
+        this.sync3DMoneyPile(false, 'expense');
+        App.updateOverview();
+      },
+
+      renderUI() {
+        const bal = this.getBalance();
+        const balEl = document.getElementById('fin-total-balance');
+        if (balEl) balEl.textContent = `$${bal.toLocaleString('en-US')}`;
+
+        const cntEl = document.getElementById('fin-tx-count');
+        if (cntEl) cntEl.textContent = `${this.data.transactions.length} операций`;
+
+        const list = document.getElementById('fin-tx-list');
+        if (!list) return;
+        list.innerHTML = '';
+        this.data.transactions.forEach(t => {
+          const row = document.createElement('div');
+          row.className = 'p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between text-xs';
+          const isInc = t.type === 'income';
+          row.innerHTML = `
+            <div>
+              <div class="font-bold text-white">${t.title}</div>
+              <div class="text-[10px] text-white/45">${t.date}</div>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="font-black text-sm ${isInc ? 'text-emerald-400' : 'text-rose-400'}">
+                ${isInc ? '+' : '-'}$${Number(t.amount).toLocaleString('en-US')}
+              </span>
+              <button onclick="FinanceMod.deleteTx(${t.id})" class="text-white/35 hover:text-white">✕</button>
+            </div>
+          `;
+          list.appendChild(row);
+        });
+      },
+
+      init3DGarage() {
+        const container = document.getElementById('scrooge-3d-container');
+        if (!container || typeof THREE === 'undefined') return;
+
+        const w = container.clientWidth || 800;
+        const h = container.clientHeight || 390;
+
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x050508, 0.035);
+
+        const camera = new THREE.PerspectiveCamera(42, w / h, 0.1, 100);
+        camera.position.set(0, 4.2, 11.2);
+        camera.lookAt(0, 1.4, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(w, h);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.innerHTML = '';
+        container.appendChild(renderer.domElement);
+
+        // Garage Lighting
+        const ambient = new THREE.AmbientLight(0xffffff, 0.65);
+        scene.add(ambient);
+
+        const spot = new THREE.SpotLight(0xfff4d0, 1.4);
+        spot.position.set(-5, 9, 6);
+        scene.add(spot);
+
+        const rim = new THREE.PointLight(0x60a5fa, 0.8, 20);
+        rim.position.set(6, 5, -4);
+        scene.add(rim);
+
+        // Garage Floor & Back Wall
+        const floorGeo = new THREE.PlaneGeometry(26, 18);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x0b0b10, roughness: 0.4, metalness: 0.3 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+
+        // Vault Safe on Left
+        const safeGroup = new THREE.Group();
+        const safeBox = new THREE.Mesh(
+          new THREE.BoxGeometry(2.4, 3.0, 2.0),
+          new THREE.MeshStandardMaterial({ color: 0x1e1e26, metalness: 0.8, roughness: 0.25 })
+        );
+        safeBox.position.y = 1.5;
+        safeGroup.add(safeBox);
+        const wheel = new THREE.Mesh(
+          new THREE.TorusGeometry(0.45, 0.08, 12, 24),
+          new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.15 })
+        );
+        wheel.position.set(0, 1.5, 1.05);
+        safeGroup.add(wheel);
+        safeGroup.position.set(-4.6, 0, -2.2);
+        safeGroup.rotation.y = 0.35;
+        scene.add(safeGroup);
+
+        // Luxury Retro Silhouette Car on Right
+        const carGroup = new THREE.Group();
+        const carBody = new THREE.Mesh(
+          new THREE.BoxGeometry(3.4, 0.85, 1.7),
+          new THREE.MeshStandardMaterial({ color: 0x14141c, metalness: 0.85, roughness: 0.2 })
+        );
+        carBody.position.y = 0.65;
+        carGroup.add(carBody);
+        const carCabin = new THREE.Mesh(
+          new THREE.BoxGeometry(1.8, 0.65, 1.45),
+          new THREE.MeshStandardMaterial({ color: 0x222230, metalness: 0.9, roughness: 0.1 })
+        );
+        carCabin.position.set(-0.2, 1.35, 0);
+        carGroup.add(carCabin);
+        carGroup.position.set(4.5, 0, -2.3);
+        carGroup.rotation.y = -0.4;
+        scene.add(carGroup);
+
+        // Build 3D Cartoon Scrooge McDuck (Coat, Head, Orange Bill/Beak, Spectacles, Top Hat, Cane)
+        const scrooge = new THREE.Group();
+
+        // Body Coat
+        const torso = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.55, 0.72, 1.5, 20),
+          new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.4 })
+        );
+        torso.position.y = 1.0;
+        scrooge.add(torso);
+
+        // White Head Sphere
+        const head = new THREE.Mesh(
+          new THREE.SphereGeometry(0.58, 24, 24),
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 })
+        );
+        head.position.y = 2.15;
+        scrooge.add(head);
+
+        // Golden-Orange Duck Beak
+        const beak = new THREE.Mesh(
+          new THREE.ConeGeometry(0.32, 0.75, 16),
+          new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.35 })
+        );
+        beak.rotation.x = Math.PI / 2;
+        beak.position.set(0, 2.08, 0.68);
+        scrooge.add(beak);
+
+        // Spectacles (Glasses)
+        const glassMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.9, roughness: 0.1 });
+        const leftLens = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.025, 10, 20), glassMat);
+        leftLens.position.set(-0.18, 2.26, 0.55);
+        const rightLens = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.025, 10, 20), glassMat);
+        rightLens.position.set(0.18, 2.26, 0.55);
+        scrooge.add(leftLens, rightLens);
+
+        // Iconic Black & Red-Ribbon Top Hat
+        const hatBrim = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.72, 0.72, 0.08, 24),
+          new THREE.MeshStandardMaterial({ color: 0x09090b, roughness: 0.3 })
+        );
+        hatBrim.position.y = 2.66;
+        const hatCrown = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.5, 0.46, 0.85, 24),
+          new THREE.MeshStandardMaterial({ color: 0x09090b, roughness: 0.3 })
+        );
+        hatCrown.position.y = 3.1;
+        const hatRibbon = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.48, 0.47, 0.14, 24),
+          new THREE.MeshStandardMaterial({ color: 0xdc2626 })
+        );
+        hatRibbon.position.y = 2.76;
+        scrooge.add(hatBrim, hatCrown, hatRibbon);
+
+        scene.add(scrooge);
+
+        const billsGroup = new THREE.Group();
+        scene.add(billsGroup);
+
+        this.three.scene = scene;
+        this.three.camera = camera;
+        this.three.renderer = renderer;
+        this.three.scroogeGroup = scrooge;
+        this.three.billsGroup = billsGroup;
+
+        // Interactive camera drag rotation
+        let isDragging = false;
+        let prevX = 0;
+        let targetAzimuth = 0;
+        let currentAzimuth = 0;
+
+        container.addEventListener('pointerdown', (e) => {
+          isDragging = true;
+          prevX = e.clientX;
+        });
+        window.addEventListener('pointerup', () => { isDragging = false; });
+        window.addEventListener('pointermove', (e) => {
+          if (!isDragging) return;
+          const dx = e.clientX - prevX;
+          prevX = e.clientX;
+          targetAzimuth = Math.max(-0.65, Math.min(0.65, targetAzimuth + dx * 0.006));
+        });
+
+        this.sync3DMoneyPile(true);
+
+        const animate = () => {
+          requestAnimationFrame(animate);
+          const t = performance.now() * 0.001;
+
+          currentAzimuth += (targetAzimuth - currentAzimuth) * 0.08;
+          camera.position.x = Math.sin(currentAzimuth) * 11.2;
+          camera.position.z = Math.cos(currentAzimuth) * 11.2;
+          camera.lookAt(0, 1.5, 0);
+
+          // Animate falling bills physics
+          this.three.fallingBills.forEach(b => {
+            if (b.mesh.position.y > b.targetY) {
+              b.vy += 0.016;
+              b.mesh.position.y -= b.vy;
+              b.mesh.rotation.y += b.vRot;
+              if (b.mesh.position.y <= b.targetY) {
+                b.mesh.position.y = b.targetY;
+                b.vy = -b.vy * 0.28; // bounce
+                if (Math.abs(b.vy) < 0.02) b.vy = 0;
+              }
+            }
+          });
+
+          // Animate rising sparkles on expense
+          for (let i = this.three.sparkles.length - 1; i >= 0; i--) {
+            const sp = this.three.sparkles[i];
+            sp.mesh.position.y += 0.06;
+            sp.mesh.scale.multiplyScalar(0.95);
+            sp.life -= 0.025;
+            if (sp.life <= 0) {
+              scene.remove(sp.mesh);
+              this.three.sparkles.splice(i, 1);
+            }
+          }
+
+          // Scrooge posture: when fillRatio >= 0.70, he lies back buried inside the 3D cash mountain with only his head & top hat sticking out!
+          if (this.three.scroogeGroup) {
+            const r = this.three.fillRatio;
+            if (r >= 0.7) {
+              const targetY = 0.35 + (r - 0.7) * 1.4;
+              scrooge.position.y += (targetY - scrooge.position.y) * 0.08;
+              scrooge.rotation.x += (-0.52 - scrooge.rotation.x) * 0.08;
+              scrooge.rotation.z = Math.sin(t * 2.2) * 0.06;
+            } else {
+              scrooge.position.y += ((Math.sin(t * 2) * 0.05) - scrooge.position.y) * 0.08;
+              scrooge.rotation.x += (0 - scrooge.rotation.x) * 0.08;
+              scrooge.rotation.y = Math.sin(t * 0.9) * 0.18;
+            }
+          }
+
+          renderer.render(scene, camera);
+        };
+        animate();
+
+        window.addEventListener('resize', () => {
+          if (!container) return;
+          const nw = container.clientWidth;
+          const nh = container.clientHeight;
+          camera.aspect = nw / nh;
+          camera.updateProjectionMatrix();
+          renderer.setSize(nw, nh);
+        });
+      },
+
+      sync3DMoneyPile(initial = false, mode = 'income') {
+        if (!this.three.billsGroup) return;
+        const bal = Math.max(0, this.getBalance());
+        const target = Math.max(100, this.data.target || 10000);
+        const ratio = Math.min(1, bal / target);
+        this.three.fillRatio = ratio;
+
+        const desiredCount = Math.round(ratio * 135);
+        const currentCount = this.three.fallingBills.length;
+
+        const billGeo = new THREE.BoxGeometry(0.75, 0.16, 0.42);
+        const billMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.45, metalness: 0.15 });
+
+        if (desiredCount > currentCount) {
+          const toAdd = desiredCount - currentCount;
+          for (let i = 0; i < toAdd; i++) {
+            const idx = currentCount + i;
+            const mesh = new THREE.Mesh(billGeo, billMat);
+
+            // Form a rich mound around Scrooge (and covering his torso at high ratio)
+            const angle = (idx * 2.39996);
+            const radius = ratio >= 0.7 && idx > 55
+              ? (Math.random() * 1.45) // pile right around Scrooge's chest so only his head & top hat stick out
+              : (0.95 + (idx % 12) * 0.26);
+            const tx = Math.cos(angle) * radius;
+            const tz = Math.sin(angle) * (radius * 0.75);
+            const ty = 0.08 + Math.floor(idx / 14) * 0.22;
+
+            mesh.position.set(tx, initial ? ty : (7.5 + Math.random() * 4), tz);
+            mesh.rotation.y = Math.random() * Math.PI;
+            this.three.billsGroup.add(mesh);
+            this.three.fallingBills.push({
+              mesh,
+              targetY: ty,
+              vy: 0,
+              vRot: (Math.random() - 0.5) * 0.04
+            });
+          }
+          if (!initial) {
+            if (ratio >= 0.7) {
+              this.sayQuote("Bury me in cash, lad! Only my top hat needs air!");
+            } else {
+              this.sayQuote(this.quotesIncome[Math.floor(Math.random() * this.quotesIncome.length)]);
+            }
+          }
+        } else if (desiredCount < currentCount) {
+          const toRemove = currentCount - desiredCount;
+          for (let i = 0; i < toRemove; i++) {
+            const popped = this.three.fallingBills.pop();
+            if (popped) {
+              // Smooth ascending golden-white sparkle instead of abrupt vanish
+              const spMesh = popped.mesh;
+              spMesh.material = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+              this.three.sparkles.push({ mesh: spMesh, life: 1.0 });
+            }
+          }
+          if (!initial && mode === 'expense') {
+            this.sayQuote(this.quotesExpense[Math.floor(Math.random() * this.quotesExpense.length)]);
+          }
+        }
+      }
+    };
+
+    /* =========================================================================
+       5. MODULE 3: BIO (PERSISTENT WATER & 125+ ITEMS NUTRITION DATABASE)
+       ========================================================================= */
+    const BioMod = {
+      selectedCategory: 'Все',
+      selectedFoodIndex: 0,
+      waterMeta: { weight: 75, goal: 2400 },
+      daily: { date: Store.todayISO(), water: 0, foods: [] },
+
+      // 125+ Comprehensive Food Database (per 100g)
+      foodDB: [
+        // Молочное и Творог
+        { cat: 'Молочное', name: 'Творог 0% обезжиренный', kcal: 71, b: 16.5, j: 0.1, u: 1.3 },
+        { cat: 'Молочное', name: 'Творог 2%', kcal: 103, b: 18.0, j: 2.0, u: 3.0 },
+        { cat: 'Молочное', name: 'Творог 5% классический', kcal: 121, b: 17.2, j: 5.0, u: 1.8 },
+        { cat: 'Молочное', name: 'Творог 9%', kcal: 159, b: 16.7, j: 9.0, u: 2.0 },
+        { cat: 'Молочное', name: 'Творог зернёный в сливках', kcal: 105, b: 12.7, j: 4.0, u: 2.5 },
+        { cat: 'Молочное', name: 'Сырники творожные', kcal: 183, b: 15.0, j: 7.5, u: 14.0 },
+        { cat: 'Молочное', name: 'Сырок творожный глазированный', kcal: 407, b: 8.5, j: 26.0, u: 35.0 },
+        { cat: 'Молочное', name: 'Греческий йогурт Teos 2%', kcal: 66, b: 8.0, j: 2.0, u: 4.2 },
+        { cat: 'Молочное', name: 'Молоко 2.5%', kcal: 54, b: 2.9, j: 2.5, u: 4.8 },
+        { cat: 'Молочное', name: 'Кефир 2.5%', kcal: 53, b: 3.0, j: 2.5, u: 4.0 },
+        { cat: 'Молочное', name: 'Сметана 15%', kcal: 162, b: 2.6, j: 15.0, u: 3.6 },
+        { cat: 'Молочное', name: 'Сметана 20%', kcal: 206, b: 2.5, j: 20.0, u: 3.4 },
+        { cat: 'Молочное', name: 'Сыр Российский / Гауда', kcal: 356, b: 24.0, j: 28.0, u: 0.0 },
+        { cat: 'Молочное', name: 'Сыр Моцарелла', kcal: 280, b: 22.0, j: 21.0, u: 1.0 },
+        { cat: 'Молочное', name: 'Сыр Пармезан', kcal: 431, b: 38.0, j: 29.0, u: 4.1 },
+        { cat: 'Молочное', name: 'Сыр Творожный (Almette/Hohland)', kcal: 245, b: 6.5, j: 23.0, u: 3.5 },
+        { cat: 'Молочное', name: 'Масло сливочное 82.5%', kcal: 748, b: 0.6, j: 82.5, u: 0.8 },
+        { cat: 'Молочное', name: 'Протеин сывороточный (Whey)', kcal: 390, b: 78.0, j: 5.0, u: 8.0 },
+
+        // Фастфуд и Пицца
+        { cat: 'Фастфуд', name: 'Пицца Пепперони', kcal: 278, b: 12.0, j: 12.5, u: 29.0 },
+        { cat: 'Фастфуд', name: 'Пицца Маргарита', kcal: 235, b: 10.2, j: 9.0, u: 28.5 },
+        { cat: 'Фастфуд', name: 'Пицца 4 Сыра', kcal: 295, b: 13.5, j: 14.8, u: 26.5 },
+        { cat: 'Фастфуд', name: 'Пицца Мясная / Барбекю', kcal: 286, b: 13.0, j: 13.2, u: 28.0 },
+        { cat: 'Фастфуд', name: 'Шаурма классическая с курицей', kcal: 215, b: 11.2, j: 10.4, u: 19.5 },
+        { cat: 'Фастфуд', name: 'Бургер (Биг Мак / Чизбургер)', kcal: 257, b: 13.0, j: 11.0, u: 26.0 },
+        { cat: 'Фастфуд', name: 'Картофель фри', kcal: 312, b: 3.4, j: 15.0, u: 41.0 },
+        { cat: 'Фастфуд', name: 'Картофель по-деревенски', kcal: 225, b: 3.2, j: 9.8, u: 31.0 },
+        { cat: 'Фастфуд', name: 'Куриные наггетсы', kcal: 296, b: 15.0, j: 18.0, u: 18.0 },
+        { cat: 'Фастфуд', name: 'Крылышки KFC острые', kcal: 308, b: 18.5, j: 21.0, u: 11.5 },
+        { cat: 'Фастфуд', name: 'Хот-дог классический', kcal: 268, b: 10.0, j: 14.5, u: 24.0 },
+        { cat: 'Фастфуд', name: 'Ролл Филадельфия с лососем', kcal: 198, b: 9.5, j: 8.2, u: 21.5 },
+        { cat: 'Фастфуд', name: 'Ролл Калифорния', kcal: 176, b: 7.0, j: 5.5, u: 24.0 },
+        { cat: 'Фастфуд', name: 'Ролл Запечённый с курицей/крабом', kcal: 228, b: 8.5, j: 10.5, u: 25.0 },
+        { cat: 'Фастфуд', name: 'Лапша WOK с курицей', kcal: 195, b: 10.5, j: 6.5, u: 24.0 },
+
+        // Снеки и Чипсы
+        { cat: 'Снеки', name: 'Чипсы картофельные (Lay\'s / Pringles)', kcal: 536, b: 6.5, j: 32.0, u: 53.0 },
+        { cat: 'Снеки', name: 'Чипсы кукурузные (Doritos / Nachos)', kcal: 498, b: 7.0, j: 24.0, u: 63.0 },
+        { cat: 'Снеки', name: 'Сухарики ржаные (Кириешки / Хрустим)', kcal: 395, b: 9.5, j: 12.0, u: 62.0 },
+        { cat: 'Снеки', name: 'Попкорн солёный / сырный', kcal: 445, b: 9.0, j: 21.0, u: 55.0 },
+        { cat: 'Снеки', name: 'Попкорн карамельный', kcal: 418, b: 5.2, j: 12.5, u: 72.0 },
+        { cat: 'Снеки', name: 'Арахис жареный солёный', kcal: 585, b: 26.0, j: 49.0, u: 10.0 },
+        { cat: 'Снеки', name: 'Фисташки жареные', kcal: 560, b: 20.0, j: 45.0, u: 27.0 },
+        { cat: 'Снеки', name: 'Миндаль / Кешью / Грецкий орех', kcal: 605, b: 20.0, j: 53.0, u: 13.0 },
+        { cat: 'Снеки', name: 'Семечки подсолнечника', kcal: 578, b: 20.7, j: 52.9, u: 5.0 },
+
+        // Мясо, Птица, Рыба, Яйца
+        { cat: 'Мясо/Рыба', name: 'Куриная грудка (филе отварное/гриль)', kcal: 137, b: 29.8, j: 1.8, u: 0.5 },
+        { cat: 'Мясо/Рыба', name: 'Куриное бедро без кожи', kcal: 185, b: 21.0, j: 11.0, u: 0.0 },
+        { cat: 'Мясо/Рыба', name: 'Филе индейки', kcal: 120, b: 25.0, j: 2.0, u: 0.0 },
+        { cat: 'Мясо/Рыба', name: 'Говядина постная тушёная', kcal: 187, b: 25.8, j: 9.0, u: 0.0 },
+        { cat: 'Мясо/Рыба', name: 'Стейк Рибай говяжий', kcal: 291, b: 24.0, j: 21.5, u: 0.0 },
+        { cat: 'Мясо/Рыба', name: 'Свинина нежирная / Шашлык', kcal: 259, b: 19.0, j: 20.0, u: 0.0 },
+        { cat: 'Мясо/Рыба', name: 'Котлеты домашние мясные', kcal: 242, b: 16.5, j: 16.8, u: 6.5 },
+        { cat: 'Мясо/Рыба', name: 'Пельмени со свининой и говядиной', kcal: 275, b: 11.9, j: 13.7, u: 26.1 },
+        { cat: 'Мясо/Рыба', name: 'Сосиски молочные / Сардельки', kcal: 266, b: 11.0, j: 23.9, u: 1.6 },
+        { cat: 'Мясо/Рыба', name: 'Колбаса варёная Докторская', kcal: 257, b: 12.8, j: 22.2, u: 1.5 },
+        { cat: 'Мясо/Рыба', name: 'Колбаса сырокопчёная / Салями', kcal: 465, b: 21.0, j: 42.0, u: 1.0 },
+        { cat: 'Мясо/Рыба', name: 'Ветчина из индейки', kcal: 126, b: 16.0, j: 6.0, u: 2.0 },
+        { cat: 'Мясо/Рыба', name: 'Яйцо куриное (2 шт ≈ 110г)', kcal: 157, b: 12.7, j: 11.5, u: 0.7 },
+        { cat: 'Мясо/Рыба', name: 'Омлет из 3 яиц с молоком', kcal: 184, b: 11.8, j: 14.5, u: 1.9 },
+        { cat: 'Мясо/Рыба', name: 'Лосось / Сёмга слабосолёная или стейк', kcal: 208, b: 20.4, j: 13.4, u: 0.0 },
+        { cat: 'Мясо/Рыба', name: 'Тунец консервированный в с/с', kcal: 101, b: 23.0, j: 1.0, u: 0.0 },
+        { cat: 'Мясо/Рыба', name: 'Треска / Минтай на пару', kcal: 78, b: 17.5, j: 0.8, u: 0.0 },
+        { cat: 'Мясо/Рыба', name: 'Креветки отварные', kcal: 95, b: 20.5, j: 1.1, u: 0.0 },
+
+        // Крупы, Гарниры, Хлеб
+        { cat: 'Гарниры', name: 'Гречка отварная', kcal: 110, b: 4.2, j: 1.1, u: 21.3 },
+        { cat: 'Гарниры', name: 'Рис белый отварной', kcal: 116, b: 2.2, j: 0.5, u: 24.9 },
+        { cat: 'Гарниры', name: 'Рис бурый / Басмати отварной', kcal: 123, b: 2.7, j: 1.0, u: 25.6 },
+        { cat: 'Гарниры', name: 'Овсяная каша на воде', kcal: 88, b: 3.0, j: 1.7, u: 15.0 },
+        { cat: 'Гарниры', name: 'Овсяная каша на молоке', kcal: 115, b: 3.8, j: 3.1, u: 17.8 },
+        { cat: 'Гарниры', name: 'Макароны / Паста отварные', kcal: 131, b: 5.0, j: 1.1, u: 25.0 },
+        { cat: 'Гарниры', name: 'Паста Карбонара', kcal: 238, b: 9.8, j: 12.2, u: 22.0 },
+        { cat: 'Гарниры', name: 'Картофель отварной / запечённый', kcal: 86, b: 2.0, j: 0.4, u: 16.7 },
+        { cat: 'Гарниры', name: 'Картофельное пюре со сливочным маслом', kcal: 112, b: 2.1, j: 4.2, u: 16.5 },
+        { cat: 'Гарниры', name: 'Плов с курицей / говядиной', kcal: 185, b: 9.2, j: 7.5, u: 20.2 },
+        { cat: 'Гарниры', name: 'Борщ с мясом', kcal: 58, b: 3.8, j: 2.9, u: 4.3 },
+        { cat: 'Гарниры', name: 'Суп куриный с лапшой', kcal: 48, b: 3.5, j: 1.8, u: 4.6 },
+        { cat: 'Гарниры', name: 'Хлеб цельнозерновой / ржаной', kcal: 214, b: 7.5, j: 1.8, u: 41.0 },
+        { cat: 'Гарниры', name: 'Хлеб белый тостовый', kcal: 265, b: 8.0, j: 3.2, u: 50.5 },
+        { cat: 'Гарниры', name: 'Хлебцы хрустящие Dr.Korner', kcal: 310, b: 10.0, j: 2.5, u: 62.0 },
+        { cat: 'Гарниры', name: 'Блины домашние', kcal: 233, b: 6.1, j: 10.0, u: 29.8 },
+
+        // Овощи и Фрукты
+        { cat: 'Овощи/Фрукты', name: 'Банан спелый', kcal: 89, b: 1.1, j: 0.3, u: 22.8 },
+        { cat: 'Овощи/Фрукты', name: 'Яблоко зелёное / красное', kcal: 52, b: 0.3, j: 0.2, u: 13.8 },
+        { cat: 'Овощи/Фрукты', name: 'Апельсин / Мандарин', kcal: 43, b: 0.9, j: 0.2, u: 8.3 },
+        { cat: 'Овощи/Фрукты', name: 'Авокадо Хасс', kcal: 160, b: 2.0, j: 14.7, u: 1.8 },
+        { cat: 'Овощи/Фрукты', name: 'Клубника / Голубика / Ягоды', kcal: 41, b: 0.8, j: 0.4, u: 8.2 },
+        { cat: 'Овощи/Фрукты', name: 'Виноград', kcal: 69, b: 0.7, j: 0.2, u: 16.8 },
+        { cat: 'Овощи/Фрукты', name: 'Огурцы / Помидоры свежие', kcal: 18, b: 0.8, j: 0.2, u: 3.2 },
+        { cat: 'Овощи/Фрукты', name: 'Салат Цезарь с курицей', kcal: 175, b: 11.5, j: 11.2, u: 7.0 },
+        { cat: 'Овощи/Фрукты', name: 'Салат Греческий с фетой', kcal: 118, b: 3.8, j: 9.5, u: 4.2 },
+
+        // Сладости и Напитки
+        { cat: 'Сладости', name: 'Шоколад молочный (Milka / Ritter Sport)', kcal: 535, b: 6.8, j: 30.5, u: 58.0 },
+        { cat: 'Сладости', name: 'Шоколад тёмный 75%–85%', kcal: 545, b: 9.2, j: 41.0, u: 34.0 },
+        { cat: 'Сладости', name: 'Батончик Snickers / Mars / Twix', kcal: 488, b: 7.5, j: 23.5, u: 61.5 },
+        { cat: 'Сладости', name: 'Протеиновый батончик Bombbar', kcal: 285, b: 33.0, j: 10.0, u: 7.0 },
+        { cat: 'Сладости', name: 'Мороженое Пломбир', kcal: 227, b: 3.7, j: 15.0, u: 20.4 },
+        { cat: 'Сладости', name: 'Круассан сливочный / с шоколадом', kcal: 406, b: 8.2, j: 21.0, u: 45.8 },
+        { cat: 'Сладости', name: 'Чизкейк Нью-Йорк', kcal: 321, b: 5.5, j: 22.5, u: 25.5 },
+        { cat: 'Сладости', name: 'Печенье овсяное / Oreo', kcal: 465, b: 5.5, j: 19.5, u: 67.0 },
+        { cat: 'Сладости', name: 'Мёд натуральный', kcal: 304, b: 0.3, j: 0.0, u: 82.4 },
+        { cat: 'Напитки', name: 'Капучино / Латте на молоке', kcal: 46, b: 2.4, j: 2.2, u: 4.1 },
+        { cat: 'Напитки', name: 'Американо / Эспрессо без сахара', kcal: 2, b: 0.1, j: 0.0, u: 0.3 },
+        { cat: 'Напитки', name: 'Кола / Газировка классическая', kcal: 42, b: 0.0, j: 0.0, u: 10.6 },
+        { cat: 'Напитки', name: 'Кола Zero без сахара', kcal: 0, b: 0.0, j: 0.0, u: 0.0 },
+        { cat: 'Напитки', name: 'Энергетик (Red Bull / Monster)', kcal: 45, b: 0.0, j: 0.0, u: 11.0 },
+        { cat: 'Напитки', name: 'Сок апельсиновый / яблочный', kcal: 46, b: 0.5, j: 0.1, u: 10.8 }
+      ],
+
+      init() {
+        // Load persistent weight & goal
+        const savedMeta = Store.get(Store.keys.waterMeta, null);
+        if (savedMeta && savedMeta.weight) {
+          this.waterMeta = savedMeta;
+        }
+        // Load today's water & meals
+        const savedDaily = Store.get(Store.keys.bioDaily, null);
+        if (savedDaily && savedDaily.date === Store.todayISO()) {
+          this.daily = savedDaily;
+        } else {
+          this.daily = { date: Store.todayISO(), water: 0, foods: [] };
+          Store.set(Store.keys.bioDaily, this.daily);
+        }
+
+        const wInp = document.getElementById('bio-weight-input');
+        const gInp = document.getElementById('bio-water-goal-input');
+        if (wInp) wInp.value = this.waterMeta.weight;
+        if (gInp) gInp.value = this.waterMeta.goal;
+
+        this.renderCategories();
+        this.filterFoods('');
+        this.renderUI();
+      },
+
+      updateWeight(val) {
+        const w = Math.max(30, Math.min(220, Number(val) || 75));
+        this.waterMeta.weight = w;
+        this.waterMeta.goal = Math.round(w * 32);
+        const gInp = document.getElementById('bio-water-goal-input');
+        if (gInp) gInp.value = this.waterMeta.goal;
+        Store.set(Store.keys.waterMeta, this.waterMeta);
+        this.renderUI();
+        App.updateOverview();
+      },
+
+      updateWaterGoal(val) {
+        const g = Math.max(500, Math.min(8000, Number(val) || 2400));
+        this.waterMeta.goal = g;
+        Store.set(Store.keys.waterMeta, this.waterMeta);
+        this.renderUI();
+        App.updateOverview();
+      },
+
+      addWater(ml) {
+        this.daily.water = Math.max(0, (this.daily.water || 0) + Number(ml));
+        Store.set(Store.keys.bioDaily, this.daily);
+        this.renderUI();
+        App.updateOverview();
+      },
+
+      renderCategories() {
+        const cats = ['Все', 'Молочное', 'Фастфуд', 'Снеки', 'Мясо/Рыба', 'Гарниры', 'Овощи/Фрукты', 'Сладости', 'Напитки'];
+        const box = document.getElementById('food-cat-pills');
+        if (!box) return;
+        box.innerHTML = '';
+        cats.forEach(c => {
+          const btn = document.createElement('button');
+          btn.className = `btn-pill-glass !py-1 !px-2.5 !text-[11px] ${this.selectedCategory === c ? 'active' : ''}`;
+          btn.textContent = c;
+          btn.onclick = () => {
+            this.selectedCategory = c;
+            this.renderCategories();
+            this.filterFoods(document.getElementById('food-search-input')?.value || '');
+          };
+          box.appendChild(btn);
+        });
+      },
+
+      filterFoods(query = '') {
+        const q = query.trim().toLowerCase();
+        const box = document.getElementById('food-db-results');
+        if (!box) return;
+        box.innerHTML = '';
+
+        const filtered = this.foodDB
+          .map((item, idx) => ({ ...item, idx }))
+          .filter(item => {
+            const matchCat = this.selectedCategory === 'Все' || item.cat === this.selectedCategory;
+            const matchQ = !q || item.name.toLowerCase().includes(q) || item.cat.toLowerCase().includes(q);
+            return matchCat && matchQ;
+          });
+
+        if (filtered.length > 0 && !filtered.some(f => f.idx === this.selectedFoodIndex)) {
+          this.selectedFoodIndex = filtered[0].idx;
+        }
+
+        filtered.forEach(item => {
+          const isSel = item.idx === this.selectedFoodIndex;
+          const card = document.createElement('div');
+          card.className = isSel
+            ? 'p-2.5 rounded-xl bg-white text-black cursor-pointer flex items-center justify-between text-xs font-bold'
+            : 'p-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 cursor-pointer flex items-center justify-between text-xs';
+          card.innerHTML = `
+            <div class="truncate pr-2">
+              <div class="font-bold truncate">${item.name}</div>
+              <div class="text-[10px] opacity-65">Б:${item.b} Ж:${item.j} У:${item.u} (на 100г)</div>
+            </div>
+            <div class="font-black shrink-0">${item.kcal} ккал</div>
+          `;
+          card.onclick = () => {
+            this.selectedFoodIndex = item.idx;
+            this.filterFoods(query);
+          };
+          card.ondblclick = () => {
+            this.selectedFoodIndex = item.idx;
+            this.addSelectedFood();
+          };
+          box.appendChild(card);
+        });
+      },
+
+      addSelectedFood() {
+        const item = this.foodDB[this.selectedFoodIndex];
+        if (!item) return;
+        const grams = Math.max(1, Number(document.getElementById('food-grams-input')?.value) || 100);
+        const ratio = grams / 100;
+        this.daily.foods.unshift({
+          id: Date.now(),
+          name: item.name,
+          grams,
+          kcal: Math.round(item.kcal * ratio),
+          b: Number((item.b * ratio).toFixed(1)),
+          j: Number((item.j * ratio).toFixed(1)),
+          u: Number((item.u * ratio).toFixed(1))
+        });
+        Store.set(Store.keys.bioDaily, this.daily);
+        this.renderUI();
+        App.updateOverview();
+      },
+
+      removeFood(id) {
+        this.daily.foods = this.daily.foods.filter(f => f.id !== id);
+        Store.set(Store.keys.bioDaily, this.daily);
+        this.renderUI();
+        App.updateOverview();
+      },
+
+      getTotals() {
+        return this.daily.foods.reduce((acc, f) => {
+          acc.kcal += f.kcal;
+          acc.b += f.b;
+          acc.j += f.j;
+          acc.u += f.u;
+          return acc;
+        }, { kcal: 0, b: 0, j: 0, u: 0 });
+      },
+
+      renderUI() {
+        // Water UI
+        const curW = this.daily.water || 0;
+        const goalW = this.waterMeta.goal || 2400;
+        const pct = Math.min(100, Math.round((curW / goalW) * 100));
+        const curEl = document.getElementById('bio-water-current');
+        const goalEl = document.getElementById('bio-water-goal-label');
+        const barEl = document.getElementById('bio-water-bar');
+        if (curEl) curEl.textContent = `${curW} мл`;
+        if (goalEl) goalEl.textContent = `из ${goalW} мл (${pct}%)`;
+        if (barEl) barEl.style.width = `${pct}%`;
+
+        // Nutrition UI
+        const tot = this.getTotals();
+        const calEl = document.getElementById('bio-cal-total');
+        const bEl = document.getElementById('bio-macro-b');
+        const jEl = document.getElementById('bio-macro-j');
+        const uEl = document.getElementById('bio-macro-u');
+        if (calEl) calEl.textContent = `${tot.kcal} ккал`;
+        if (bEl) bEl.textContent = `Б: ${tot.b.toFixed(0)}г`;
+        if (jEl) jEl.textContent = `Ж: ${tot.j.toFixed(0)}г`;
+        if (uEl) uEl.textContent = `У: ${tot.u.toFixed(0)}г`;
+
+        const list = document.getElementById('food-log-list');
+        if (!list) return;
+        list.innerHTML = '';
+        if (this.daily.foods.length === 0) {
+          list.innerHTML = `<div class="text-xs text-white/35">Пока нет записей за сегодня</div>`;
+          return;
+        }
+        this.daily.foods.forEach(f => {
+          const row = document.createElement('div');
+          row.className = 'p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between text-xs';
+          row.innerHTML = `
+            <div>
+              <span class="font-bold">${f.name}</span>
+              <span class="text-white/45 ml-1">(${f.grams}г)</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <span class="text-[11px] text-white/60">Б:${f.b} Ж:${f.j} У:${f.u}</span>
+              <span class="font-black">${f.kcal} ккал</span>
+              <button onclick="BioMod.removeFood(${f.id})" class="text-white/35 hover:text-white">✕</button>
+            </div>
+          `;
+          list.appendChild(row);
+        });
+      }
+    };
+
+    /* =========================================================================
+       6. MODULE 4: TASKS & CALENDAR (WORKDAYS/WEEKENDS, SUBTASKS TABLE, GOOGLE CAL)
+       ========================================================================= */
+    const TasksMod = {
+      selectedDate: Store.todayISO(),
+      tasks: [],
+
+      init() {
+        const saved = Store.get(Store.keys.tasks, null);
+        if (saved && Array.isArray(saved)) {
+          this.tasks = saved;
+        } else {
+          this.tasks = [
+            {
+              id: 101,
+              date: Store.todayISO(),
+              title: 'Стратегический обзор Personal OS',
+              time: '11:00',
+              prio: 'high',
+              done: false,
+              subtasks: [
+                { text: 'Проверить индекс готовности', done: true },
+                { text: 'Записать сон и норму воды', done: false },
+                { text: 'Синхронизировать с календарём', done: false }
+              ]
+            }
+          ];
+          Store.set(Store.keys.tasks, this.tasks);
+        }
+        this.renderCalendarStrip();
+        this.renderTasks();
+      },
+
+      renderCalendarStrip() {
+        const strip = document.getElementById('tasks-calendar-strip');
+        if (!strip) return;
+        strip.innerHTML = '';
+
+        const dayNames = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+        const base = new Date();
+        for (let i = -3; i <= 10; i++) {
+          const d = new Date(base);
+          d.setDate(base.getDate() + i);
+          const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const dow = d.getDay();
+          const isWeekend = (dow === 0 || dow === 6);
+          const isSel = iso === this.selectedDate;
+
+          const btn = document.createElement('button');
+          btn.className = `cal-day-btn p-2.5 rounded-2xl border text-center flex flex-col items-center justify-center ${
+            isSel
+              ? 'bg-white text-black border-white font-black shadow-lg scale-105'
+              : isWeekend
+                ? 'cal-weekend text-indigo-200 border-indigo-400/30 hover:bg-indigo-500/20'
+                : 'bg-white/5 border-white/10 text-white/75 hover:bg-white/10'
+          }`;
+          btn.innerHTML = `
+            <span class="text-[10px] uppercase tracking-wider opacity-75">${dayNames[dow]}</span>
+            <span class="text-base font-black mt-0.5">${d.getDate()}</span>
+            <span class="text-[9px] mt-0.5 px-1.5 py-0.2 rounded-full ${isSel ? 'bg-black/15 text-black' : isWeekend ? 'bg-indigo-400/20 text-indigo-200' : 'text-white/40'}">
+              ${isWeekend ? 'Вых' : 'Буд'}
+            </span>
+          `;
+          btn.onclick = () => {
+            this.selectedDate = iso;
+            this.renderCalendarStrip();
+            this.renderTasks();
+          };
+          strip.appendChild(btn);
+        }
+      },
+
+      addTask(customTitle) {
+        const tEl = document.getElementById('task-title-input');
+        const timeEl = document.getElementById('task-time-input');
+        const prioEl = document.getElementById('task-prio-input');
+        const subEl = document.getElementById('task-subtasks-input');
+
+        const title = customTitle !== undefined ? customTitle : tEl?.value.trim();
+        if (!title) return;
+
+        const rawSubs = customTitle !== undefined ? '' : (subEl?.value || '');
+        const subtasks = rawSubs
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean)
+          .map(s => ({ text: s, done: false }));
+
+        this.tasks.unshift({
+          id: Date.now(),
+          date: this.selectedDate,
+          title,
+          time: timeEl?.value || '10:00',
+          prio: prioEl?.value || 'medium',
+          done: false,
+          subtasks
+        });
+
+        Store.set(Store.keys.tasks, this.tasks);
+        if (tEl) tEl.value = '';
+        if (subEl) subEl.value = '';
+        this.renderTasks();
+        App.updateOverview();
+      },
+
+      toggleTask(id) {
+        const t = this.tasks.find(x => x.id === id);
+        if (t) {
+          t.done = !t.done;
+          Store.set(Store.keys.tasks, this.tasks);
+          this.renderTasks();
+          App.updateOverview();
+        }
+      },
+
+      toggleSubtask(taskId, subIdx) {
+        const t = this.tasks.find(x => x.id === taskId);
+        if (t && t.subtasks && t.subtasks[subIdx]) {
+          t.subtasks[subIdx].done = !t.subtasks[subIdx].done;
+          Store.set(Store.keys.tasks, this.tasks);
+          this.renderTasks();
+        }
+      },
+
+      addInlineSubtask(taskId) {
+        const inp = document.getElementById(`inline-sub-${taskId}`);
+        const val = inp?.value.trim();
+        if (!val) return;
+        const t = this.tasks.find(x => x.id === taskId);
+        if (t) {
+          if (!t.subtasks) t.subtasks = [];
+          t.subtasks.push({ text: val, done: false });
+          Store.set(Store.keys.tasks, this.tasks);
+          this.renderTasks();
+        }
+      },
+
+      deleteTask(id) {
+        this.tasks = this.tasks.filter(x => x.id !== id);
+        Store.set(Store.keys.tasks, this.tasks);
+        this.renderTasks();
+        App.updateOverview();
+      },
+
+      openGoogleCal(id) {
+        const t = this.tasks.find(x => x.id === id);
+        if (!t) return;
+        const dClean = t.date.replace(/-/g, '');
+        const tClean = (t.time || '10:00').replace(':', '') + '00';
+        const details = encodeURIComponent((t.subtasks || []).map(s => `• ${s.text}`).join('\n'));
+        const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(t.title)}&dates=${dClean}T${tClean}/${dClean}T${tClean}&details=${details}`;
+        window.open(url, '_blank');
+      },
+
+      exportICS() {
+        let ics = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Personal OS//RU\n";
+        this.tasks.forEach(t => {
+          const dClean = t.date.replace(/-/g, '');
+          const tClean = (t.time || '10:00').replace(':', '') + '00';
+          ics += `BEGIN:VEVENT\nSUMMARY:${t.title}\nDTSTART:${dClean}T${tClean}\nEND:VEVENT\n`;
+        });
+        ics += "END:VCALENDAR";
+        const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'personal_os_tasks.ics';
+        a.click();
+      },
+
+      renderTasks() {
+        const box = document.getElementById('tasks-list-container');
+        if (!box) return;
+        box.innerHTML = '';
+
+        const dayTasks = this.tasks.filter(t => t.date === this.selectedDate);
+        const doneCount = dayTasks.filter(t => t.done).length;
+
+        const prog = document.getElementById('tasks-progress-badge');
+        if (prog) prog.textContent = `Выполнено: ${doneCount}/${dayTasks.length}`;
+
+        if (dayTasks.length === 0) {
+          box.innerHTML = `<div class="p-6 rounded-2xl bg-white/5 border border-white/10 text-center text-xs text-white/40">На выбранную дату задач пока нет</div>`;
+          return;
+        }
+
+        const prioBadge = {
+          high: '<span class="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 text-[10px] font-bold">🔥 Высокий</span>',
+          medium: '<span class="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-200 text-[10px] font-bold">⚡ Средний</span>',
+          low: '<span class="px-2 py-0.5 rounded-md bg-white/10 text-white/70 text-[10px] font-bold">💎 Обычный</span>'
+        };
+
+        dayTasks.forEach(t => {
+          const card = document.createElement('div');
+          card.className = 'p-4 rounded-2xl bg-white/5 border border-white/12 space-y-3';
+
+          let subTableHTML = '';
+          if (t.subtasks && t.subtasks.length > 0) {
+            const rows = t.subtasks.map((s, idx) => `
+              <tr onclick="TasksMod.toggleSubtask(${t.id}, ${idx})" class="border-t border-white/10 cursor-pointer hover:bg-white/5">
+                <td class="py-1.5 px-2.5 w-7 text-center">${s.done ? '✅' : '⬜'}</td>
+                <td class="py-1.5 px-2 text-xs ${s.done ? 'line-through text-white/40' : 'text-white/90'}">${s.text}</td>
+                <td class="py-1.5 px-2.5 text-right text-[10px] text-white/45">${s.done ? 'Готово' : 'В работе'}</td>
+              </tr>
+            `).join('');
+            subTableHTML = `
+              <div class="rounded-xl overflow-hidden border border-white/10 bg-black/40">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="bg-white/5 text-[10px] uppercase tracking-wider text-white/45">
+                      <th class="py-1 px-2.5">Ст.</th>
+                      <th class="py-1 px-2">Подзадача / Шаг</th>
+                      <th class="py-1 px-2.5 text-right">Статус</th>
+                    </tr>
+                  </thead>
+                  <tbody>${rows}</tbody>
+                </table>
+              </div>
+            `;
+          }
+
+          card.innerHTML = `
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-2.5 cursor-pointer" onclick="TasksMod.toggleTask(${t.id})">
+                <div class="w-5 h-5 rounded-lg border border-white/30 flex items-center justify-center text-xs ${t.done ? 'bg-white text-black font-black' : ''}">
+                  ${t.done ? '✓' : ''}
+                </div>
+                <div>
+                  <div class="text-sm font-black ${t.done ? 'line-through text-white/40' : ''}">${t.title}</div>
+                  <div class="flex items-center gap-2 mt-0.5 text-[11px] text-white/50">
+                    <span>🕒 ${t.time}</span>
+                    ${prioBadge[t.prio] || ''}
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button onclick="TasksMod.openGoogleCal(${t.id})" class="btn-pill-glass !py-1 !px-2.5 !text-[10px]">GCal ↗</button>
+                <button onclick="TasksMod.deleteTask(${t.id})" class="text-white/35 hover:text-white px-1.5">✕</button>
+              </div>
+            </div>
+            ${subTableHTML}
+            <div class="flex items-center gap-1.5 pt-1">
+              <input id="inline-sub-${t.id}" type="text" placeholder="Добавить шаг в таблицу..."
+                onkeydown="if(event.key==='Enter')TasksMod.addInlineSubtask(${t.id})"
+                class="w-full bg-white/5 border border-white/10 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-white" />
+              <button onclick="TasksMod.addInlineSubtask(${t.id})" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white hover:text-black text-xs font-bold">+</button>
+            </div>
+          `;
+          box.appendChild(card);
+        });
+      }
+    };
+
+    /* =========================================================================
+       7. MODULE 5: LINKS & DEEP LINKS HUB (IPHONE/ANDROID NATIVE APPS)
+       ========================================================================= */
+    const LinksMod = {
+      links: [],
+
+      init() {
+        const saved = Store.get(Store.keys.links, null);
+        if (saved && Array.isArray(saved)) {
+          this.links = saved;
+        } else {
+          this.links = [
+            { id: 1, title: 'Telegram', url: 'tg://', icon: '📱' },
+            { id: 2, title: 'YouTube', url: 'vnd.youtube://', icon: '▶️' },
+            { id: 3, title: 'Команды iOS', url: 'shortcuts://', icon: '⚡' },
+            { id: 4, title: 'Apple Здоровье', url: 'x-apple-health://', icon: '❤️' },
+            { id: 5, title: 'Будильник', url: 'clock-alarm://', icon: '⏰' },
+            { id: 6, title: 'Spotify', url: 'spotify://', icon: '🎵' },
+            { id: 7, title: 'TradingView', url: 'https://tradingview.com', icon: '📈' },
+            { id: 8, title: 'Supabase', url: 'https://supabase.com/dashboard', icon: '🟢' }
+          ];
+          Store.set(Store.keys.links, this.links);
+        }
+        this.render();
+      },
+
+      fillPreset(title, url, icon) {
+        document.getElementById('link-title-input').value = title;
+        document.getElementById('link-url-input').value = url;
+        document.getElementById('link-icon-input').value = icon;
+      },
+
+      addLink() {
+        const title = document.getElementById('link-title-input')?.value.trim();
+        let url = document.getElementById('link-url-input')?.value.trim();
+        const icon = document.getElementById('link-icon-input')?.value.trim() || '🌐';
+        if (!title || !url) return;
+        if (!url.includes('://')) url = `https://${url}`;
+
+        this.links.unshift({ id: Date.now(), title, url, icon });
+        Store.set(Store.keys.links, this.links);
+        document.getElementById('link-title-input').value = '';
+        document.getElementById('link-url-input').value = '';
+        this.render();
+        App.updateOverview();
+      },
+
+      deleteLink(id, e) {
+        e.stopPropagation();
+        this.links = this.links.filter(l => l.id !== id);
+        Store.set(Store.keys.links, this.links);
+        this.render();
+        App.updateOverview();
+      },
+
+      launchLink(url) {
+        const isDeep = !url.startsWith('http://') && !url.startsWith('https://');
+        if (isDeep) {
+          window.location.href = url;
+        } else {
+          window.open(url, '_blank', 'noopener');
+        }
+      },
+
+      render() {
+        const grid = document.getElementById('links-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        this.links.forEach(l => {
+          const isApp = !l.url.startsWith('http');
+          const card = document.createElement('div');
+          card.className = 'liquid-card p-4 cursor-pointer flex flex-col justify-between hover:scale-[1.02] transition';
+          card.onclick = () => this.launchLink(l.url);
+          card.innerHTML = `
+            <div class="flex items-start justify-between">
+              <div class="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-xl">${l.icon}</div>
+              <div class="flex items-center gap-1.5">
+                <span class="px-2 py-0.5 rounded-full text-[9px] font-black ${isApp ? 'bg-white text-black' : 'bg-white/10 text-white/60'}">
+                  ${isApp ? 'APP' : 'WEB'}
+                </span>
+                <button onclick="LinksMod.deleteLink(${l.id}, event)" class="text-white/30 hover:text-white text-xs">✕</button>
+              </div>
+            </div>
+            <div class="mt-3">
+              <div class="font-black text-sm truncate">${l.title}</div>
+              <div class="text-[10px] text-white/40 truncate mt-0.5">${l.url}</div>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+      }
+    };
+
+    /* =========================================================================
+       8. COMMAND PALETTE (CMD+K / CTRL+K)
+       ========================================================================= */
+    const CommandPalette = {
+      open() {
+        const m = document.getElementById('cmd-palette-modal');
+        if (!m) return;
+        m.classList.remove('hidden');
+        m.classList.add('flex');
+        const inp = document.getElementById('cmd-input');
+        if (inp) {
+          inp.value = '';
+          inp.focus();
+        }
+        this.renderList('');
+      },
+
+      close() {
+        const m = document.getElementById('cmd-palette-modal');
+        if (!m) return;
+        m.classList.add('hidden');
+        m.classList.remove('flex');
+      },
+
+      renderList(q = '') {
+        const box = document.getElementById('cmd-list');
+        if (!box) return;
+        const actions = [
+          { label: '💧 Выпить +250 мл воды', run: () => BioMod.addWater(250) },
+          { label: '💧 Выпить +500 мл воды', run: () => BioMod.addWater(500) },
+          { label: '🌙 Записать 8 часов сна за сегодня', run: () => SleepMod.saveDuration(8, 0) },
+          { label: '💎 Добавить доход +$500 в гараж Скруджа', run: () => FinanceMod.addTransaction(500, 'Быстрый доход', 'income') },
+          { label: '🍽 Перейти в Питание (поиск 125+ продуктов)', run: () => App.switchTab('bio') },
+          { label: '☑️ Открыть Календарь и Задачи', run: () => App.switchTab('tasks') },
+          { label: '⬇ Скачать полный бэкап JSON', run: () => Store.exportJSON() }
+        ];
+        const filtered = actions.filter(a => a.label.toLowerCase().includes(q.toLowerCase()));
+        box.innerHTML = '';
+        filtered.forEach(a => {
+          const item = document.createElement('button');
+          item.className = 'w-full text-left p-2.5 rounded-xl bg-white/5 hover:bg-white hover:text-black text-xs font-bold transition flex items-center justify-between';
+          item.innerHTML = `<span>${a.label}</span><span>↵</span>`;
+          item.onclick = () => {
+            a.run();
+            this.close();
+          };
+          box.appendChild(item);
+        });
+      }
+    };
+
+    /* =========================================================================
+       9. 3D WEBGL BACKGROUND (3D JET + CRYPTO BLOCKCHAIN NETWORK + FLOATING BILLS)
+       ========================================================================= */
+    const Background3D = {
+      init() {
+        const canvas = document.getElementById('bg-webgl-canvas');
+        if (!canvas || typeof THREE === 'undefined') return;
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 120);
+        camera.position.z = 22;
+
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
+
+        const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambient);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        dirLight.position.set(10, 15, 12);
+        scene.add(dirLight);
+
+        // 1. Crypto Network Nodes + Connecting Lines
+        const netGroup = new THREE.Group();
+        const nodeCount = 28;
+        const nodes = [];
+        const nodeGeo = new THREE.OctahedronGeometry(0.28, 0);
+        const nodeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true });
+
+        for (let i = 0; i < nodeCount; i++) {
+          const m = new THREE.Mesh(nodeGeo, nodeMat);
+          m.position.set(
+            (Math.random() - 0.5) * 34,
+            (Math.random() - 0.5) * 20,
+            (Math.random() - 0.5) * 14 - 4
+          );
+          netGroup.add(m);
+          nodes.push(m);
+        }
+
+        const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12 });
+        for (let i = 0; i < nodeCount; i++) {
+          for (let j = i + 1; j < nodeCount; j++) {
+            if (nodes[i].position.distanceTo(nodes[j].position) < 9.5) {
+              const pts = [nodes[i].position, nodes[j].position];
+              const lGeo = new THREE.BufferGeometry().setFromPoints(pts);
+              netGroup.add(new THREE.Line(lGeo, lineMat));
+            }
+          }
+        }
+        scene.add(netGroup);
+
+        // 2. Sleek 3D Business Jet flying smoothly along figure-8 orbit
+        const jetGroup = new THREE.Group();
+        const fuselage = new THREE.Mesh(
+          new THREE.ConeGeometry(0.35, 2.4, 12),
+          new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.85, roughness: 0.15 })
+        );
+        fuselage.rotation.x = Math.PI / 2;
+        jetGroup.add(fuselage);
+
+        const wings = new THREE.Mesh(
+          new THREE.BoxGeometry(2.6, 0.05, 0.65),
+          new THREE.MeshStandardMaterial({ color: 0xd4d4d8, metalness: 0.8, roughness: 0.2 })
+        );
+        wings.position.z = -0.2;
+        jetGroup.add(wings);
+
+        const tail = new THREE.Mesh(
+          new THREE.BoxGeometry(0.06, 0.55, 0.45),
+          new THREE.MeshStandardMaterial({ color: 0xffffff })
+        );
+        tail.position.set(0, 0.28, -0.95);
+        jetGroup.add(tail);
+        scene.add(jetGroup);
+
+        // 3. Floating 3D Cash Stacks in deep space
+        const floatingCash = [];
+        const cashGeo = new THREE.BoxGeometry(0.9, 0.14, 0.48);
+        const cashMat = new THREE.MeshStandardMaterial({ color: 0xa1a1aa, metalness: 0.5, roughness: 0.4 });
+        for (let i = 0; i < 12; i++) {
+          const cm = new THREE.Mesh(cashGeo, cashMat);
+          cm.position.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 18, (Math.random() - 0.5) * 10 - 6);
+          cm.rotation.set(Math.random() * 3, Math.random() * 3, 0);
+          scene.add(cm);
+          floatingCash.push(cm);
+        }
+
+        let mouseX = 0, mouseY = 0;
+        window.addEventListener('pointermove', (e) => {
+          mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+          mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+        });
+
+        const animate = () => {
+          requestAnimationFrame(animate);
+          if (document.hidden) return;
+          const t = performance.now() * 0.00045;
+
+          netGroup.rotation.y = t * 0.35 + mouseX * 0.15;
+          netGroup.rotation.x = mouseY * 0.1;
+
+          // Jet figure-8 smooth trajectory
+          const jx = Math.sin(t * 2.0) * 14;
+          const jy = Math.sin(t * 4.0) * 4.2;
+          const jz = Math.cos(t * 2.0) * 5 - 3;
+          const nextT = t + 0.02;
+          const nx = Math.sin(nextT * 2.0) * 14;
+          const ny = Math.sin(nextT * 4.0) * 4.2;
+          const nz = Math.cos(nextT * 2.0) * 5 - 3;
+
+          jetGroup.position.set(jx, jy, jz);
+          jetGroup.lookAt(nx, ny, nz);
+          jetGroup.rotation.z += Math.cos(t * 2.0) * 0.35; // banking on turns
+
+          floatingCash.forEach((c, idx) => {
+            c.rotation.x += 0.004;
+            c.rotation.y += 0.006;
+            c.position.y += Math.sin(t * 3 + idx) * 0.005;
+          });
+
+          renderer.render(scene, camera);
+        };
+        animate();
+
+        window.addEventListener('resize', () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+      }
+    };
+
+    /* =========================================================================
+       10. HOST APPLICATION SHELL (DOCK SLIDING, URL WEBHOOKS, LIFE READINESS)
+       ========================================================================= */
+    const App = {
+      activeTab: 'overview',
+
+      init() {
+        // Set full date in header (e.g., 14.11.2026)
+        const dateEl = document.getElementById('header-full-date');
+        if (dateEl) dateEl.textContent = Store.formatFullDateRU();
+
+        // Initialize all isolated modules
+        SleepMod.init();
+        FinanceMod.init();
+        BioMod.init();
+        TasksMod.init();
+        LinksMod.init();
+        Background3D.init();
+
+        this.initSlidingDock();
+        this.initCardSpotlights();
+        this.initKeyboardShortcuts();
+        this.processURLCommands();
+        this.updateOverview();
+      },
+
+      switchTab(tabId) {
+        this.activeTab = tabId;
+        const tabs = ['overview', 'sleep', 'finance', 'bio', 'tasks', 'links'];
+        const watermarks = {
+          overview: 'SILENCE',
+          sleep: 'DREAM',
+          finance: 'EMPIRE',
+          bio: 'VITALITY',
+          tasks: 'EXECUTE',
+          links: 'CONNECT'
+        };
+        const wm = document.getElementById('bg-watermark');
+        if (wm) wm.textContent = watermarks[tabId] || 'SILENCE';
+
+        tabs.forEach(t => {
+          const sec = document.getElementById(`tab-${t}`);
+          if (sec) sec.classList.toggle('hidden', t !== tabId);
+        });
+
+        document.querySelectorAll('#ios-bottom-dock .dock-item').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.tab === tabId);
+        });
+
+        if (tabId === 'finance') {
+          setTimeout(() => window.dispatchEvent(new Event('resize')), 60);
+        }
+        this.updateOverview();
+      },
+
+      // iPhone-style continuous press-and-slide navigation on the bottom dock
+      initSlidingDock() {
+        const dock = document.getElementById('ios-bottom-dock');
+        if (!dock) return;
+        let isSliding = false;
+
+        const pickFromPoint = (clientX, clientY) => {
+          const el = document.elementFromPoint(clientX, clientY);
+          const item = el?.closest('.dock-item');
+          if (item && item.dataset.tab && item.dataset.tab !== this.activeTab) {
+            this.switchTab(item.dataset.tab);
+          }
+        };
+
+        dock.addEventListener('pointerdown', (e) => {
+          isSliding = true;
+          pickFromPoint(e.clientX, e.clientY);
+        });
+        window.addEventListener('pointermove', (e) => {
+          if (!isSliding) return;
+          pickFromPoint(e.clientX, e.clientY);
+        });
+        window.addEventListener('pointerup', () => {
+          isSliding = false;
+        });
+      },
+
+      initCardSpotlights() {
+        window.addEventListener('pointermove', (e) => {
+          document.querySelectorAll('.liquid-card').forEach(card => {
+            const rect = card.getBoundingClientRect();
+            card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+            card.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+          });
+        });
+      },
+
+      initKeyboardShortcuts() {
+        window.addEventListener('keydown', (e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            CommandPalette.open();
+          } else if (e.key === 'Escape') {
+            CommandPalette.close();
+            this.closeCloudModal();
+          }
+        });
+      },
+
+      // Automatic URL parameter receiver for iOS Shortcuts / Apple Pay / Siri
+      processURLCommands() {
+        const params = new URLSearchParams(window.location.search);
+        let changed = false;
+
+        if (params.has('add_water')) {
+          BioMod.addWater(Number(params.get('add_water')) || 250);
+          changed = true;
+        }
+        if (params.has('add_sleep')) {
+          const h = Number(params.get('add_sleep')) || 8;
+          SleepMod.saveDuration(Math.floor(h), Math.round((h % 1) * 60));
+          changed = true;
+        }
+        if (params.has('add_tx')) {
+          const amt = Number(params.get('add_tx'));
+          const title = params.get('title') || 'Авто-операция iOS';
+          const type = params.get('type') || 'expense';
+          if (amt > 0) FinanceMod.addTransaction(amt, title, type);
+          changed = true;
+        }
+        if (params.has('add_task')) {
+          TasksMod.addTask(params.get('add_task'));
+          changed = true;
+        }
+
+        if (changed && window.history.replaceState) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      },
+
+      updateOverview() {
+        // 1. Sleep stats
+        const s = SleepMod.getStatsForOverview();
+        document.getElementById('ov-sleep-val').textContent = SleepMod.formatHM(s.todayVal);
+        document.getElementById('ov-sleep-sub').textContent = s.todayVal >= 7.5 ? 'Норма выполнена' : 'Ниже оптимума';
+        document.getElementById('ov-readiness-iq').textContent = `IQ-Потенциал: ${s.iq}`;
+        document.getElementById('ov-readiness-debt').textContent = `Долг сна: ${s.debt.toFixed(1)}ч`;
+        document.getElementById('ov-lux-sleep-avg').textContent = `Среднее (7 дн): ${s.avg7.toFixed(1)} ч`;
+
+        // 2. Water & Nutrition stats
+        const curW = BioMod.daily.water || 0;
+        const goalW = BioMod.waterMeta.goal || 2400;
+        document.getElementById('ov-water-val').textContent = `${curW} мл`;
+        document.getElementById('ov-water-sub').textContent = `Цель: ${goalW} мл`;
+
+        const macros = BioMod.getTotals();
+        document.getElementById('ov-cal-val').textContent = `${macros.kcal} ккал`;
+        document.getElementById('ov-cal-sub').textContent = `Б:${macros.b.toFixed(0)} Ж:${macros.j.toFixed(0)} У:${macros.u.toFixed(0)}`;
+
+        // 3. Capital stats
+        const bal = FinanceMod.getBalance();
+        const target = FinanceMod.data.target || 10000;
+        const fillPct = Math.min(100, Math.max(0, Math.round((bal / target) * 100)));
+        document.getElementById('ov-fin-val').textContent = `$${bal.toLocaleString('en-US')}`;
+        document.getElementById('ov-lux-fin-rate').textContent = `Заполнение: ${fillPct}%`;
+
+        // 4. Tasks stats
+        const todayTasks = TasksMod.tasks.filter(t => t.date === Store.todayISO());
+        const doneTasks = todayTasks.filter(t => t.done).length;
+        document.getElementById('ov-tasks-val').textContent = `${doneTasks} / ${todayTasks.length}`;
+
+        const ovTaskList = document.getElementById('ov-today-tasks-list');
+        if (ovTaskList) {
+          if (todayTasks.length === 0) {
+            ovTaskList.innerHTML = `<div class="text-white/40">Все задачи на сегодня закрыты</div>`;
+          } else {
+            ovTaskList.innerHTML = todayTasks.slice(0, 3).map(t => `
+              <div onclick="TasksMod.toggleTask(${t.id})" class="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10 cursor-pointer">
+                <span class="${t.done ? 'line-through text-white/40' : 'font-semibold'}">${t.title}</span>
+                <span class="text-[10px] text-white/45">${t.time}</span>
+              </div>
+            `).join('');
+          }
+        }
+
+        // 5. Links count
+        document.getElementById('ov-links-val').textContent = String(LinksMod.links.length);
+
+        // 6. Cross-Module Life Readiness Score (0-100%)
+        const sleepScore = Math.min(100, (s.todayVal / 8.0) * 100);
+        const waterScore = Math.min(100, (curW / goalW) * 100);
+        const taskScore = todayTasks.length > 0 ? (doneTasks / todayTasks.length) * 100 : 85;
+        const readiness = Math.round(sleepScore * 0.5 + waterScore * 0.25 + taskScore * 0.25);
+
+        document.getElementById('ov-readiness-val').textContent = `${readiness}%`;
+        const ring = document.getElementById('ov-readiness-ring');
+        if (ring) {
+          ring.setAttribute('stroke-dashoffset', String(Math.round(264 * (1 - readiness / 100))));
+        }
+        const rLabel = document.getElementById('ov-readiness-label');
+        if (rLabel) {
+          rLabel.textContent = readiness >= 80 ? 'Пиковый ресурс' : readiness >= 55 ? 'Рабочий тонус' : 'Требуется восстановление';
+        }
+      },
+
+      requestNotifications() {
+        if (!('Notification' in window)) {
+          alert('Браузер не поддерживает системные уведомления');
+          return;
+        }
+        Notification.requestPermission().then(p => {
+          if (p === 'granted') {
+            new Notification('Personal OS', { body: 'Уведомления системы успешно активированы!' });
+          }
+        });
+      },
+
+      openCloudModal() {
+        const cfg = Store.get(Store.keys.cloud, { url: '', key: '' });
+        document.getElementById('supa-url').value = cfg.url || '';
+        document.getElementById('supa-key').value = cfg.key || '';
+        const m = document.getElementById('cloud-modal');
+        m.classList.remove('hidden');
+        m.classList.add('flex');
+      },
+
+      closeCloudModal() {
+        const m = document.getElementById('cloud-modal');
+        m.classList.add('hidden');
+        m.classList.remove('flex');
+      }
+    };
+
+    // Expose modules globally for inline handlers
+    window.Store = Store;
+    window.WheelFactory = WheelFactory;
+    window.SleepMod = SleepMod;
+    window.FinanceMod = FinanceMod;
+    window.BioMod = BioMod;
+    window.TasksMod = TasksMod;
+    window.LinksMod = LinksMod;
+    window.CommandPalette = CommandPalette;
+    window.App = App;
+
+    window.addEventListener('DOMContentLoaded', () => App.init());
+  </script>
+</body>
+</html>
